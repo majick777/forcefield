@@ -1237,10 +1237,9 @@ PucFactory::addVersion('PucGitHubChecker', 'PucGitHubChecker_2_1', '2.1');
 // 	class PluginInfo extends PluginInfo_2_1 {}
 // }
 
-// maybe Load the Update Checker now
-if ( (isset($vslug)) && (isset($vfile)) ) {
-	$vurl = 'http://wordquest.org/downloads/?action=get_metadata&slug='.$vslug;
-	$vupdatecheck = new PluginUpdateChecker_2_1($vurl, $vfile, $vslug);
+// --- maybe Load the Update Checker now ---
+if (isset($slug) && isset($file)) {
+	$url = 'http://wordquest.org/downloads/?action=get_metadata&slug='.$slug;
+	$updatecheck = new PluginUpdateChecker_2_1($url, $file, $slug);
 }
 
-?>

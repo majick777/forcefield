@@ -18,33 +18,21 @@ Adds several layers of security to restrict access to common hacking attack vect
 
 **Tokenized  Protection**
 
-Reduce Brute Force Password attacks, SPAM Comments, Fake User Registrations and Sploggers.
-Adds a dynamic Javascript Token field to all common user action forms:
-Login, Registration (+BuddyPress Registration), Blog Signup (Multisite), Lost Password and Commenting
-Since the majority of bots do not have the capacity to recognize or handle javascript fields,
-their attempts at access via these actions are blocked, with repeat offender getting IP banned.
+Easily reduce Brute Force Password attacks, SPAM Comments, Fake User Registrations and Sploggers! Adds a dynamic Javascript Token field to all common user action forms: Login, Registration (plus BuddyPress Registration), Blog Signup (Multisite only), Lost Password and Commenting. 
+
+Since the majority of bots do not have the capacity to recognize or handle javascript fields, their attempts at access via these actions are instantly blocked - with repeat offender getting IP banned from further attempts.
+
+**Login Role Protection**
+
+A last line of defense against hackers who have managed to "somehow" create their own administrator account! Automatically block, notify by email, revoke role and/or demote to subscriber any "administrator" account that logs in who is not in an *explicit whitelist* of verified administrator usernames. Goodbye escalated privelage attack! (The same settings are also available for the Super Admin role on Multisite installs.)
 
 **API Protection**
 
-Adds several ways to restrict access to XML RPC and REST API features. While these *can* be disabled,
-there are several other options provided to severely limit bot and other unauthorized access while still
-being able to use these features as intended! Part of the aim of this plugin is to make these options
-available for everyone without needing to code them: Multiple request slowdown, disable XML RPC logins, 
-logged in access only, restrict access to specified user roles, and require secure connection.
-
-**Admin Protection**
-
-A last line of defense against hackers who have managed to create their own administrator account!
-Automatically block, notify by email and/or *auto-delete* an account when an "administrator" logs in 
-who is not in an *explicit whitelist* of verified admin usernames. Goodbye escalated privelage attack!
+Adds several ways to restrict access to XML RPC and REST API features. While these *can* be disabled, there are several other options provided to severely limit bot and other unauthorized access while still being able to use these features as intended! Part of the aim of this plugin is to make these options available for everyone without needing to code them: Multiple request slowdown, disable XML RPC logins, logged in access only, restrict access to specified user roles, and require secure connection.
 
 **Behavioural Protection**
 
-Records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours.
-Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are
-reduced via cooldown over time, with old records expired and later deleted (all intervals adjustable.)
-This process keeps protection high for fresh attacks while keeping the database free of record bloating.
-Also option to output a form to banned IPs to unblock themselves manually in case of false positives.
+ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (so you don't lock yourself out of your site!)
 
 [ForceField Home](http://wordquest.org/plugins/forcefield/)
 [Support Forum](http://wordquest.org/support/forcefield/)
@@ -64,6 +52,16 @@ Also option to output a form to banned IPs to unblock themselves manually in cas
 
 
 == Changelog ==
+
+= 0.9.6 =
+* Updated to use Plugin Loader Class
+* Disabled Plugin/Theme Updates sections
+* maybe transfer old Settings from settings key
+* moved Role Protect options to separate tab
+* allow for auto-pass/auto-fail limit values
+* added filters for contexts/intervals/expiries
+* added nonce field to user IP unblock form
+* fix to IP blocklist display query arguments
 
 = 0.9.5 =
 * Added BuddyPress registration token field 
