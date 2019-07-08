@@ -640,9 +640,10 @@ class forcefield_loader {
 
 		echo "<html><body style='font-family: Consolas, \"Lucida Console\", Monaco, FreeMono, monospace'>";
 
+		// 1.0.7: change readme.php to reader.php
 		$readme = dirname($args['file']).'/readme.txt';
 		$contents = file_get_contents($readme);
-		$parser = dirname($args['file']).'/readme.php';
+		$parser = dirname($args['file']).'/reader.php';
 
 		if (file_exists($parser)) {
 
