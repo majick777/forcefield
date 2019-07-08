@@ -4,21 +4,14 @@
 Plugin Name: ForceField
 Plugin URI: http://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
-Description: Flexible Protection for Login, Registration, Commenting, REST API and XML RPC.
-Version: 0.9.6
+Description: Strong and Flexible Access, User Action, API and Role Protection
+Version: 0.9.7
 Author URI: http://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
 */
 
 if (!function_exists('add_action')) {exit;}
-
-// [DEVELOPMENT DEBUGGING NOTE]
-// You can add this to your wp-config.php to bypass all REST API Nonce Checks
-// (this can be helpful to eliminate REST nonces as a cause of endpoint failure):
-// define('REST_NONCE_BYPASS', true);
-// (see function forcefield_rest_nonce_bypass in forcefield-apis.php)
-
 
 // ==================
 // === FORCEFIELD ===
@@ -42,6 +35,7 @@ if (!function_exists('add_action')) {exit;}
 // - Admin Options Page Loader
 // === Login Role Protection ===
 // - Block Unwhitelisted Logins
+// - Protect Default User Role
 // === Helper Functions ===
 // - Simple Alert Message
 // - Get General Error Message
@@ -61,20 +55,13 @@ if (!function_exists('add_action')) {exit;}
 
 // Development TODOs
 // -----------------
-// ** retest after plugin loader update
-// ? maybe separate file for tokens / blocklist / API sections ?
-// - turn XML RPC method disable settings into on/off switches ?
+// - Idea: single device sign-ons (force logout other sessions)
+// - Idea: track changes to options table values
+// -- check home and siteurl options against WP_HOME and WP_SITEURL constants ?
+// -- check / protect wp_user_roles, membership and default_role option for changes ?
+// + add WP CLI commands for clearing IP blocklists
+// ? turn XML RPC method disable settings into on/off switches ?
 // - handle IPv6 blocklist range checking ?
-// - check home and siteurl options against WP_HOME and WP_SITEURL constants ?
-// - check / protect wp_user_roles, membership and default_role option for changes ?
-// ref: https://blog.nintechnet.com/critical-0day-vulnerability-fixed-in-wordpress-easy-wp-smtp-plugin/
-
-// Release TODOs
-// -------------
-// - check/update readme.txt
-// + WordQuest plugin page and support forum
-// - create GitHub repo
-// - submit to WordPress.org
 
 
 // --------------------
@@ -94,21 +81,22 @@ if (is_object($current_user) && property_exists($current_user, 'user_email')) {
 }
 
 // 0.9.6: converted to options for plugin loader class
+// 0.9.7: use new emails setting option type to allow multiple emails
 $options = array(
 
 	// --- Administrator Logins ---
 	'admin_block' 			=> array('type' => 'checkbox', 'default' => 'yes'),
-	'admin_blockaction'		=> array('type' => '/delete/revoke/demote', 'default' => 'remove'),
-	'admin_whitelist'		=> array('type' => 'special', 'default' => ''),
+	'admin_blockaction'		=> array('type' => '/delete/revoke/demote', 'default' => ''),
+	'admin_whitelist'		=> array('type' => 'csv', 'default' => ''),
 	'admin_alert'			=> array('type' => 'checkbox', 'default' => 'yes'),
-	'admin_email'			=> array('type' => 'email', 'default' => $adminemail),
+	'admin_email'			=> array('type' => 'emails', 'default' => $adminemail),
 
 	// --- Super Admin Logins ---
 	'super_block' 			=> array('type' => 'checkbox', 'default' => 'yes'),
-	'super_blockaction'		=> array('type' => '/delete/revoke/demote', 'default' => 'remove'),
-	'super_whitelist'		=> array('type' => 'special', 'default' => ''),
+	'super_blockaction'		=> array('type' => '/delete/revoke/demote', 'default' => 'revoke'),
+	'super_whitelist'		=> array('type' => 'csv', 'default' => ''),
 	'super_alert'			=> array('type' => 'checkbox', 'default' => 'yes'),
-	'super_email'			=> array('type' => 'email', 'default' => $adminemail),
+	'super_email'			=> array('type' => 'emails', 'default' => $adminemail),
 
 	// --- IP Blocklist ---
 	'blocklist_tokenexpiry'	=> array('type' => 'numeric', 'default' => '300'),
@@ -182,24 +170,42 @@ $options = array(
 	'restapi_restricted'	=> array('type' => 'checkbox', 'default' => 'no'),
 	'restapi_roles'			=> array('type' => 'special', 'default' => array()),
 	'restapi_nouserlist'	=> array('type' => 'checkbox', 'default' => 'yes'),
-	'restapi_nojsonp'		=> array('type' => 'checkbox', 'default' => 'no'),
 	'restapi_nolinks'		=> array('type' => 'checkbox', 'default' => 'no'),
-	'restapi_prefix'		=> array('type' => 'alphanumeric', 'default' => ''),
+	'restapi_nojsonp'		=> array('type' => 'checkbox', 'default' => 'no'),
+	// 0.9.7: removed REST API prefix changes (this filter is better hardcoded in mu-plugins)
+	// 'restapi_prefix'		=> array('type' => 'alphanumeric', 'default' => ''),
+
+	// TODO: options backup protection
+	// 'options_alert_email'	=> array('type' => 'emails', 'default' => $adminemail),
+	// 'options_backup_checks'	=> array('type' => 'checkbox', 'default' => 'yes'),
+	// 'options_backup_actions'	=> array('type' => 'restore/alert/restorealert', 'default' => 'alert'),
 
 	// --- Auto Updates ---
-	// 0.9.6: disable auto update options
+	// 0.9.6: disabled auto update options
 	// 'autoupdate_self' => 'no',
 	// 'autoupdate_inactive_plugins' => 'no',
 	// 'autoupdate_inactive_themes' => 'no',
 
-	// --- Admin UI ---
-	'current_tab'			=> array('type' => 'general/role-protect/user-actions/xml-rpc/rest-api/ip-blocklist',
+	// --- Admin Page Interface ---
+	'current_tab'			=> array('type' => 'general/role-protect/user-actions/api-access/ip-blocklist',
 									'default' => 'general'),
 
 );
-// 0.9.1: add transgression limit defaults
-$limits = forcefield_blocklist_get_default_limits();
-foreach ($limits as $key => $limit) {$options['limit_'.$key] = array('type' => 'numeric', 'default' => $limit);}
+
+// ----------------------
+// Special Options Filter
+// ----------------------
+// 0.9.7: added special options filter
+add_filter('forcefield_options', 'forcefield_special_settings', 0);
+function forcefield_special_settings($options) {
+
+	// 0.9.1: add transgression limit defaults
+	$limits = forcefield_blocklist_get_default_limits();
+	foreach ($limits as $key => $limit) {
+		$options['limit_'.$key] = array('type' => 'numeric', 'default' => $limit);
+	}
+	return $options;
+}
 
 // ---------------
 // Plugin Settings
@@ -242,27 +248,88 @@ $args = array(
 );
 
 // ----------------------------
+// Load Plugin Module Functions
+// ----------------------------
+// 0.9.7: moved above plugin loader for function accessibility
+$forcefielddir = dirname(__FILE__).DIRECTORY_SEPARATOR;
+
+// --- WordPress APIs Module ---
+include_once($forcefielddir.'forcefield-apis.php');
+
+// --- Authentication Module ---
+include_once($forcefielddir.'forcefield-auth.php');
+
+// --- Blocklist Module ---
+include_once($forcefielddir.'forcefield-block.php');
+
+// ----------------------------
 // Start Plugin Loader Instance
 // ----------------------------
 require(dirname(__FILE__).DIRECTORY_SEPARATOR.'loader.php');
 $instance = new forcefield_loader($args);
 
+// ----------------------------
+// Check/Create Debug Directory
+// ----------------------------
+umask(0000);
+$debugdir = dirname(__FILE__).'/debug';
+if (!is_dir($debugdir)) {wp_mkdir_p($debugdir);}
+if (is_dir($debugdir)) {
 
-// ---------------------------
-// === Load Plugin Modules ===
-// ---------------------------
-// TODO: maybe filter loading of plugin modules ?
-$dir = dirname(__FILE__).DIRECTORY_SEPARATOR;
+	$debughtaccess = $debugdir."/.htaccess";
+	$htaccess = "deny from all";
 
-// --- WordPress APIs Module ---
-include_once($dir.'forcefield-apis.php');
+	// --- check for existing htaccess file and content match ---
+	$writehtaccess = false;
+	if (!file_exists($debughtaccess)) {$writehtaccess = true;}
+	elseif (file_get_contents($debughtaccess) != $htaccess) {$writehtaccess = true;}
 
-// --- Authentication Module ---
-include_once($dir.'forcefield-auth.php');
+	if ($writehtaccess) {
 
-// --- Blocklist Module ---
-include_once($dir.'forcefield-block.php');
+		// --- check direct writing method before writing ---
+		if (!function_exists('get_filesystem_method')) {require_once(ABSPATH.'/wp-admin/includes/file.php');}
+		$checkmethod = get_filesystem_method(array(), $debugdir, false);
 
+		if ($checkmethod == 'direct') {
+			// --- write directly ---
+			$fh = fopen($debughtaccess, 'w');
+			@fwrite($fh, $htaccess); fclose($fh);
+			@chmod($debughtaccess, 0644);
+		} else {
+			// --- write using WP Filesystem ---
+			global $wp_filesystem;
+			if (empty($wp_filesystem)) {WP_Filesystem();}
+			$wp_filesystem->put_contents($debughtaccess, $htaccess, FS_CHMOD_FILE);
+		}
+
+		// 1.9.7: recheck for written .htaccess file
+		if (!file_exists($debughtaccess) || (file_get_contents($debughtaccess) != $htaccess)) {
+			add_action('admin_notices', 'forcefield_debug_htaccess_warning');
+		}
+	}
+} else {add_action('admin_notices', 'forcefield_debug_directory_warning');}
+
+// -------------------------------------
+// Debug Directory not Writeable Warning
+// -------------------------------------
+function forcefield_debug_directory_warning() {
+	global $forcefield;
+	$message = __('Warning','forcefield').": ".$forcefield['title']." ";
+	$message .= __('Debug Log Directory NOT writeable!','forcefield');
+	return $message;
+}
+
+// ------------------------------------
+// Debug Htaccess Write Failure Warning
+// ------------------------------------
+// 0.9.7: added this warning
+function forcefield_debug_htaccess_warning() {
+	global $forcefield;
+	$message = __('Warning','forcefield').": ".$forcefield['title']." ";
+	$message .= __('Debug Log Directory .htaccess write failure.','forcefield')."<br>";
+	$message .= __('It is recommended that you fix this problem manually.','forcefield');
+	return $message;
+}
 
 // -----------------------
 // === Plugin Settings ===
@@ -294,10 +361,11 @@ function forcefield_transfer_settings() {
 // Process Special Settings
 // ------------------------
 // 0.9.6: process special settings updates
+// 0.9.7: removed restapi_prefix option saving
 function forcefield_process_special($settings) {
 
 	// --- get needed data values ---
-	$prefix = $settings['restapi_prefix'];
+	// $prefix = $settings['restapi_prefix'];
 	$roles = wp_roles()->get_names();
 	$intervals = forcefield_get_intervals();
 
@@ -309,7 +377,8 @@ function forcefield_process_special($settings) {
 		'blocklist_expiry'		=> 'frequency',
 		'blocklist_delete'		=> 'frequency',
 		'blocklist_cleanups'	=> 'frequency',
-		'restapi_prefix'		=> 'specialtext',
+		// 0.9.7: removed restapi_prefix option
+		// 'restapi_prefix'		=> 'specialtext',
 	);
 
 	// --- loop to update special options ---
@@ -318,22 +387,25 @@ function forcefield_process_special($settings) {
 		if (isset($_POST[$postkey])) {$posted = $_POST[$postkey];} else {$posted = '';}
 
 		if ($type == 'specialtext') {
+
 			$test = str_replace('/', '', $posted);
 			$checkposted = preg_match('/^[a-zA-Z0-9_\-]+$/', $test);
 			if ($checkposted) {$settings[$key] = $posted;}
 			else {$settings[$key] = '';}
+
 		} elseif ($type == 'iptextarea') {
+
 			// 0.9.1: added for IP list textareas
 			if (trim($posted) == '') {$settings[$key] = '';}
 			else {
 				// --- validate textarea IP lines ---
 				$posted = stripslashes($posted);
 				$validips = $iprows = array();
-				if (strstr($posted, "\n")) {$iprows = explode("\n", $posted);} else {$iprows[0] = $posted;}
+				if (strstr($posted, "\n")) {$iprows = explode("\n", $posted);} else {$iprows = array($posted);}
 				foreach ($iprows as $i => $iprow) {
 					// note: allowing for comma separated lines ---
 					$iprow = trim($iprow); $ips = array();
-					if (strstr($iprow, ",")) {$ips = explode(",", $iprow);} else {$ips[0] = trim($iprow);}
+					if (strstr($iprow, ",")) {$ips = explode(",", $iprow);} else {$ips = array(trim($iprow));}
 					foreach ($ips as $ip) {
 						$ip = trim($ip);
 						$checkip = forcefield_get_ip_type($ip);
@@ -342,6 +414,7 @@ function forcefield_process_special($settings) {
 				}
 				$settings[$key] = $validips;
 			}
+
 		} elseif ($type == 'frequency') {
 			if (array_key_exists($posted, $intervals)) {$settings[$key] = $posted;}
 			else {$settings[$key] = '';}
@@ -352,12 +425,27 @@ function forcefield_process_special($settings) {
 	if ($prefix != $settings['restapi_prefix']) {flush_rewrite_rules();}
 
 	// --- handle XML RPC and REST API role restrictions ---
+	// 0.9.7: fix to remove newly unchecked API role restrictions
 	$settings['xmlrpc_roles'] = $settings['restapi_roles'] = array();
 	foreach ($roles as $role => $label) {
 		$xmlrpckey = 'ff_xmlrpc_role_'.$role;
-		if (isset($_POST[$xmlrpckey]) && ($_POST[$xmlrpckey] == 'yes')) {$settings['xmlrpc_roles'][] = $role;}
+		if (isset($_POST[$xmlrpckey])) {
+			if ($_POST[$xmlrpckey] == 'yes') {$settings['xmlrpc_roles'][] = $role;}
+			elseif (in_array($role, $settings['xmlrpc_roles'])) {
+				foreach ($settings['xmlrpc_roles'] as $i => $value) {
+					if ($value == $role) {unset($settings['xmlrpc_roles'][$i]);}
+				}
+			}
+		}
 		$restkey = 'ff_restapi_role_'.$role;
-		if (isset($_POST[$restkey]) && ($_POST[$restkey] == 'yes')) {$settings['restapi_roles'][] = $role;}
+		if (isset($_POST[$restkey])) {
+			if ($_POST[$restkey] == 'yes') {$settings['restapi_roles'][] = $role;}
+			elseif (in_array($role, $settings['restapi_roles'])) {
+				foreach ($settings['restapi_roles'] as $i => $value) {
+					if ($value == $role) {unset($settings['restapi_roles'][$i]);}
+				}
+			}
+		}
 	}
 
 	// --- update transgression limits ---
@@ -402,88 +490,93 @@ function forcefield_administrator_validation() {
 	// Super Admin Login Check
 	// -----------------------
 	// 0.9.6: added whitelist check for super admin role (multisite only)
-	if ( ($blocksuper == 'yes') && (count($superadmins) > 0) && is_super_admin($userid) ) {
+	if (is_multisite()) {
+		if ( ($blocksuper == 'yes') && (count($superadmins) > 0) && is_super_admin($userid) ) {
 
-		// --- get whitelist ---
-		$whitelisted = array();
-		$whitelist = forcefield_get_setting('super_whitelist');
-		if (strstr($whitelist, ',')) {
-			$whitelisted = explode(',', $whitelist);
-			foreach ($whitelisted as $i => $whitelisted) {$whitelisted[$i] = trim($whitelisted);}
-		} elseif (trim($whitelist) != '') {$whitelisted[0] = trim($whitelisted);}
+			// --- get whitelist ---
+			$whitelisted = array();
+			$whitelist = forcefield_get_setting('super_whitelist');
+			if (strstr($whitelist, ',')) {
+				$whitelisted = explode(',', $whitelist);
+				foreach ($whitelisted as $i => $whitelisted) {$whitelisted[$i] = trim($whitelisted);}
+			} elseif (trim($whitelist) != '') {$whitelisted = array(trim($whitelisted));}
 
-		// --- check if in whitelist ---
-		if ( (count($whitelisted) > 0) && !in_array($userlogin, $whitelisted)) {
+			// --- check if in whitelist ---
+			if ( (count($whitelisted) > 0) && !in_array($userlogin, $whitelisted)) {
 
-			// --- maybe send admin alert email ---
-			$adminemail = forcefield_get_setting('super_email');
-			$alertemail = forcefield_get_setting('super_alert');
-			$blockaction = forcefield_get_setting('super_blockaction');
+				// --- maybe send admin alert email ---
+				$adminemail = forcefield_get_setting('super_email');
+				$alertemail = forcefield_get_setting('super_alert');
+				$blockaction = forcefield_get_setting('super_blockaction');
 
-			// ---- handle block action ---
-			if ($blockaction == 'delete') {
-
-				// --- delete the user completely ---
-				if (!function_exists('wp_delete_user')) {include(ABSPATH.WPINC.'/user.php');}
-				wp_delete_user($userid);
-
-			} elseif ($blockaction == 'revoke') {
-
-				// --- remove administrator role ---
-				revoke_super_admin($userid);
-
-			} elseif ($blockaction == 'demote') {
-
-				// --- remove all roles and add subscriber only ---
-				revoke_super_admin($userid);
-				foreach ($user->roles as $role) {$user->remove_role($role);}
-				$user->add_role('subscriber');
-
-			}
-
-			// --- maybe send alert email ---
-			if ( ($alertemail == 'yes') && ($adminemail != '') ) {
-
-				// --- set mail from name ---
-				add_filter('wp_mail_from_name', 'forcefield_email_from_name');
-
-				// --- set email subject and body ---
-				$blogname = get_bloginfo('name');
-				$subject = '[ForceField] Warning: Unwhitelisted Super-Admin Login!';
-				$body = 'ForceField plugin has blocked an unwhitelisted super-admin login'."\n";
-				$body .= 'to WordPress site '.$blogname.' ('.home_url().')'."\n\n";
-				$body .= 'Username Blocked: "'.$userlogin.'"'."\n\n";
-				$body .= 'If this username is familiar, add it to your whitelist to stop further alerts.'."\n";
-				$body .= 'But if it is unfamiliar, your site security may be compromised.'."\n\n";
-
-				// --- maybe add block action info ---
+				// ---- handle block action ---
 				if ($blockaction == 'delete') {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the user "'.$userlogin.'" was automatically deleted.'."\n\n";
+
+					// --- delete the user completely ---
+					if (!function_exists('wp_delete_user')) {include(ABSPATH.WPINC.'/user.php');}
+					wp_delete_user($userid);
+
 				} elseif ($blockaction == 'revoke') {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the super-admin role has been revoked from user "'.$userlogin.'.'."\n\n";
+
+					// --- remove administrator role ---
+					revoke_super_admin($userid);
+
 				} elseif ($blockaction == 'demote') {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the user "'.$userlogin.' has been demoted to a subscriber.'."\n\n";
+
+					// --- remove all roles and add subscriber only ---
+					revoke_super_admin($userid);
+					foreach ($user->roles as $role) {$user->remove_role($role);}
+					$user->add_role('subscriber');
+
 				}
 
-				// --- add dump user object ---
-				$body .= 'Below is a dump of the user object for "'.$userlogin.'"'."\n";
-				$body .= '----------'."\n";
-				$body .= print_r($user, true);
+				// --- maybe send alert email ---
+				if ( ($alertemail == 'yes') && ($adminemail != '') ) {
 
-				// --- send the alert email now ---
-				wp_mail($adminemail, $subject, $body);
+					// --- set mail from name ---
+					add_filter('wp_mail_from_name', 'forcefield_email_from_name');
+
+					// --- set email subject and body ---
+					$blogname = get_bloginfo('name');
+					$subject = '[ForceField] Warning: Unwhitelisted Super-Admin Login!';
+					$body = 'ForceField plugin has blocked an unwhitelisted super-admin login'."\n";
+					$body .= 'to WordPress site '.$blogname.' ('.home_url().')'."\n\n";
+					$body .= 'Username Blocked: "'.$userlogin.'"'."\n\n";
+					$body .= 'If this username is familiar, add it to your whitelist to stop further alerts.'."\n";
+					$body .= 'But if it is unfamiliar, your site security may be compromised.'."\n\n";
+
+					// --- maybe add block action info ---
+					if ($blockaction == 'delete') {
+						$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
+						$body .= 'the user "'.$userlogin.'" was automatically deleted.'."\n\n";
+					} elseif ($blockaction == 'revoke') {
+						$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
+						$body .= 'the super-admin role has been revoked from user "'.$userlogin.'.'."\n\n";
+					} elseif ($blockaction == 'demote') {
+						$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
+						$body .= 'the user "'.$userlogin.' has been demoted to a subscriber.'."\n\n";
+					}
+
+					// --- add dump user object ---
+					$body .= 'Below is a dump of the user object for "'.$userlogin.'"'."\n";
+					$body .= '----------'."\n";
+					$body .= print_r($user, true);
+
+					// --- send the alert email now ---
+					// 0.9.7: allow for multiple alert emails
+					if (strstr($adminemail, ',')) {$emails = explode(',', $adminemail);}
+					else {$emails = array(trim($adminemail));}
+					foreach ($emails as $email) {wp_mail($email, $subject, $body);}
+				}
+
+				// --- add IP address to blocklist ---
+				forcefield_blocklist_record_ip('admin_bad');
+
+				// --- clear the login cache ---
+				wp_cache_delete($userid, 'users');
+				wp_cache_delete($userlogin, 'userlogins');
+				wp_logout(); exit;
 			}
-
-			// --- add IP address to blocklist ---
-			forcefield_blocklist_record_ip('admin_bad');
-
-			// --- clear the login cache ---
-			wp_cache_delete($userid, 'users');
-			wp_cache_delete($userlogin, 'userlogins');
-			wp_logout(); exit;
 		}
 	}
 
@@ -497,7 +590,7 @@ function forcefield_administrator_validation() {
 		if (strstr($whitelist, ',')) {
 			$whitelisted = explode(',', $whitelist);
 			foreach ($whitelisted as $i => $admin) {$whitelisted[$i] = trim($admin);}
-		} elseif (trim($whitelist) != '') {$whitelisted[0] = trim($whitelist);}
+		} elseif (trim($whitelist) != '') {$whitelisted = array(trim($whitelist));}
 
 		// --- check if not in whitelist ---
 		if ( (count($whitelisted) > 0) && !in_array($userlogin, $whitelisted)) {
@@ -564,7 +657,10 @@ function forcefield_administrator_validation() {
 
 				// --- send the alert email now ---
 				// 0.9.6: fix to incorrect message variable typo
-				wp_mail($adminemail, $subject, $body);
+				// 0.9.7: allow for multiple alert emails
+				if (strstr($adminemail, ',')) {$emails = explode(',', $adminemail);}
+				else {$emails = array(trim($adminemail));}
+				foreach ($emails as $email) {wp_mail($email, $subject, $body);}
 			}
 
 			// --- add IP address to blocklist ---
@@ -612,8 +708,10 @@ function forcefield_get_remote_ip($debug=false) {
 	// 0.9.3: get remote address keys
 	$ipkeys = forcefield_get_remote_ip_keys();
 
+	// 0.9.7: fix for undefined local variable warning
+	$local = false;
 	foreach ($ipkeys as $ipkey) {
-		if ( (isset($_SERVER[$ipkey])) && (!empty($_SERVER[$ipkey])) ) {
+		if (isset($_SERVER[$ipkey]) && !empty($_SERVER[$ipkey])) {
 			$ip = $_SERVER[$ipkey];
 
 			// --- filter out server IP match ---
@@ -755,8 +853,20 @@ function forcefield_forbidden_exit() {
 // ----------------
 // 0.9.1: added abstract error wrapper
 function forcefield_filtered_error($error, $errormessage, $status=false, $errors=false) {
+
+	global $forcefield;
+
 	if (!$status) {$status = 403;}
 	$errormessage = apply_filters('forcefield_error_message_'.$error, $errormessage);
+
+	// --- log errors to debug file ---
+	// 0.9.7: added authentication error logging
+	$datetime = date('Y-m-d H:i:s', time());
+	$ip = forcefield_get_remote_ip();
+	$debugline = '['.$datetime.'] '.$ip.': '.$error.' - '.$errormessage.' ('.$status.')'.PHP_EOL;
+	error_log($debugline, 3, dirname(__FILE__).'/debug/auth-errors.log');
+
+	// --- return errors ---
 	if ($errors && (is_wp_error($errors)) ) {
 		$errors->add($error, $errormessage, array('status' => $status));
 		return $errors;
