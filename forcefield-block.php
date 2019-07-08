@@ -88,7 +88,8 @@ function forcefield_whitelist_check($context, $ip=false) {
 // ------------------
 // IP Blacklist Check
 // ------------------
-function forcefield_blacklist_check($ontext, $ip=false) {
+// 0.9.7: fix to variable typo (ontext?!)
+function forcefield_blacklist_check($context, $ip=false) {
 
 	global $wpdb, $forcefield;
 	if (!$ip) {$ip = $forcefield['ip'];}
@@ -100,7 +101,7 @@ function forcefield_blacklist_check($ontext, $ip=false) {
 			if (in_array($ip, $blacklist)) {return true;}
 			if (count($blacklist) > 0) {
 				foreach ($blacklist as $ipaddress) {
-					if ( (strstr($ipaddress, '*')) || (strstr($ipaddress, '-')) ) {
+					if ( strstr($ipaddress, '*') || strstr($ipaddress, '-') ) {
 						if (forcefield_is_ip_in_range($ip, $ipaddress)) {return true;}
 					}
 				}
@@ -177,6 +178,8 @@ function forcefield_blocklist_check() {
 			if ($enforced) {
 
 				// --- check transgressions ---
+				// 0.9.7: fix for undefined transgression count
+				$transgressions = $record['transgressions'];
 				$blocked = forcefield_blocklist_check_transgressions($reason, $transgressions);
 				if ($blocked) {
 
@@ -212,15 +215,20 @@ function forcefield_blocklist_table_create() {
 	// Note: IP Transgression Table Structure based on Shield Plugin (wp-simple-firewall)
 	// Ref: https://www.icontrolwp.com/blog/wordpress-security-plugin-update-automatically-block-malicious-visitors/
 
+	// 0.9.7: fix for missed plugin activation check
+	if (!isset($forcefield['table'])) {$forcefield['table'] = $wpdb->prefix.'forcefield_ips';}
+	if (!isset($forcefield['charset'])) {$forcefield['charset'] = $wpdb->get_charset_collate();}
+
 	// --- create table query ---
-	$checktable = $wpdb->get_var("SHOW TABLES LIKE '".$forcefield['tablename']."'");
-	if ($checktable != $forcefield['tablename']) {
+	// 0.9.7: fix for mismatch table name key on new installs
+	$checktable = $wpdb->get_var("SHOW TABLES LIKE '".$forcefield['table']."'");
+	if ($checktable != $forcefield['table']) {
 
 		// --- load dbDelta function ---
 		require_once(ABSPATH.'wp-admin/includes/upgrade.php');
 
 		// --- set create table query ---
-		$query = "CREATE TABLE %s (
+		$query = "CREATE TABLE ".$forcefield['table']." (
 				id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
 				ip varchar(40) NOT NULL DEFAULT '',
 				label varchar(255) NOT NULL DEFAULT '',
@@ -232,9 +240,9 @@ function forcefield_blocklist_table_create() {
 				created_at int(15) UNSIGNED NOT NULL DEFAULT 0,
 				deleted_at int(15) UNSIGNED NOT NULL DEFAULT 0,
 				PRIMARY KEY (id)
-			) %s;";
-		// TODO: use wpdb->prepare method instead ?
-		$query = sprintf($query, $forcefield['tablename'], $forcefield['charset']);
+		) ".$forcefield['charset'].";";
+		// 0.9.7: use neither sprintf or wpdb->prepare method (as adding single quotes breaking query!)
+		// $query = $wpdb->prepare($query, array($forcefield['table'], $forcefield['charset']));
 
 		// --- execute create table query ---
 		dbDelta($query);
@@ -584,7 +592,7 @@ function forcefield_blocklist_unblock_form_output() {
 
 	// --- user message ---
 	echo "<tr><td>";
-	echo __('Access denied. Your IP Address has been blocked!','forcefield')."<br>".PHP_EOL;
+	echo __('Access Denied. Your IP Address has been blocked!','forcefield')."<br>".PHP_EOL;
 	echo __('If you are a real person click the button below.','forcefield').PHP_EOL;
 	echo "</td></tr>";
 
@@ -615,36 +623,46 @@ add_action('wp_ajax_nopriv_forcefield_unblock', 'forcefield_blocklist_unblock_ch
 function forcefield_blocklist_unblock_check() {
 
 	// --- fail on empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {exit;}
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {exit;}
 
 	// --- check nonce field ---
 	// 0.9.6: added user nonce field for unblock IP request
 	// $checknonce = wp_verify_nonce('forcefield-unblock');
 	check_admin_referer('forcefield-unblock');
 
-	// --- check token field ---
-	$authtoken = $_POST['auth_token'];
-	$checktoken = forcefield_check_token('unblock');
+	// --- check for unblock token ---
+	// 0.9.7: added check if unblock token set
+	if (isset($_POST['auth_token_unblock'])) {
 
-	// 0.9.5: check now returns an array so we check 'value' key
-	if (!$checktoken) {
+		// --- check token field ---
+		$authtoken = $_POST['auth_token_unblock'];
+		$checktoken = forcefield_check_token('unblock');
 
-		// --- unblock token expired ---
-		$message = __('Time Limit Expired. Refresh the Page and Try Again.','forcefield');
+		// 0.9.5: check now returns an array so we check 'value' key
+		if (!$checktoken) {
 
-	} elseif ($authtoken != $checktoken['value']) {
+			// --- unblock token expired ---
+			$message = __('Time limit expired. Refresh the page and try again.','forcefield');
 
-		// --- fail, token is a mismatch ---
-		$message = __('Invalid Request. IP Unblock Failed.','forcefield');
+		} elseif ($authtoken != $checktoken['value']) {
 
+			// --- fail, token is a mismatch ---
+			$message = __('Invalid Request. IP Unblock Failed.','forcefield');
+
+		} else {
+
+			// --- success, delete block record ---
+			// 0.9.6: added missing success message
+			forcefield_blocklist_delete_record();
+			forcefield_delete_token('unblock');
+			$message = __('Success! Your IP has been unblocked.','forcefield');
+
+		}
 	} else {
-
-		// --- success, delete block record ---
-		// 0.9.6: added missing success message
-		forcefield_blocklist_delete_record();
-		forcefield_delete_token('unblock');
-		$message = __('Success! Your IP has been unblocked.','forcefield');
-
+		// --- missing unblock token ---
+		// 0.9.7: added message for missing unblock token
+		$message = __('Error! Unblock authentication failed.','forcefield');
 	}
 
 	// --- javascript alert message and exit ---
