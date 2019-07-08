@@ -6,10 +6,12 @@
 
 // Development TODOs
 // -----------------
-// * change admin_autodelete to admin_blockaction selection!
 // + add other role actions / whitelists (super-admin? editor?)
-// ? move / remove plugin auto-update options ?
 
+
+// -------------------
+// Admin Settings Page
+// -------------------
 function forcefield_admin_page() {
 
 	global $forcefield, $wordquestplugins;
@@ -80,6 +82,7 @@ function forcefield_admin_page() {
 		document.getElementById('role-protect').style.display = 'none';
 		document.getElementById('user-actions').style.display = 'none';
 		document.getElementById('api-access').style.display = 'none';
+		document.getElementById('vuln-checker').style.display = 'none';
 		/* document.getElementById('auto-updates').style.display = 'none'; */
 		document.getElementById('ip-blocklist').style.display = 'none';
 		document.getElementById(tab).style.display = '';
@@ -87,6 +90,7 @@ function forcefield_admin_page() {
 		document.getElementById('role-protect-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById('user-actions-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById('api-access-button').style.backgroundColor = '#DDDDDD';
+		document.getElementById('vuln-checker-button').style.backgroundColor = '#DDDDDD';
 		/* document.getElementById('auto-updates-button').style.backgroundColor = '#DDDDDD'; */
 		document.getElementById('ip-blocklist-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById(tab+'-button').style.backgroundColor = '#F0F0F0';
@@ -149,6 +153,14 @@ function forcefield_admin_page() {
 		echo '<div id="api-access-button" class="tab-button"';
 			if ($currenttab == 'api-access') {echo ' style="background-color:#F0F0F0;"';}
 		echo '>'.__('API Access','forcefield').'</div></a></li>'.PHP_EOL;
+
+		// --- Vulnerabilities ---
+		// 0.9.8: added vulnerability checker tab
+		echo '<li style="display:inline-block;">'.PHP_EOL;
+		echo '<a href="javascript:void(0);" onclick="showtab(\'vuln-checker\');" style="text-decoration:none;">'.PHP_EOL;
+		echo '<div id="vuln-checker-button" class="tab-button"';
+			if ($currenttab == 'vuln-checker') {echo ' style="background-color:#F0F0F0;"';}
+		echo '>'.__('Vulnerabilities','forcefield').'</div></a></li>'.PHP_EOL;
 
 		// --- Auto Updates ---
 		// 0.9.6: removed auto updates page display
@@ -728,6 +740,7 @@ function forcefield_admin_page() {
 		if ($currenttab != 'api-access') {$hide = ' style="display:none;"';} else {$hide = '';}
 		echo '<div id="api-access"'.$hide.'><table>';
 
+			// -------
 			// XML RPC
 			// -------
 
@@ -834,8 +847,11 @@ function forcefield_admin_page() {
 
 			// --- pro method restriction options ---
 			// 0.9.1: [PRO] XML RPC Method Restriction Options
-			if (function_exists('forcefield_pro_method_options')) {forcefield_pro_method_options();}
+			// 0.9.4: use do_action instead of function_exists
+			do_action('forcefield_method_options');
 
+
+			// --------
 			// REST API
 			// --------
 
@@ -933,9 +949,113 @@ function forcefield_admin_page() {
 
 			// --- pro endpoint restriction options ---
 			// 0.9.1: [PRO] Output Endpoint Restriction Options
-			if (function_exists('forcefield_pro_endpoint_options')) {forcefield_pro_endpoint_options();}
+			// 0.9.4: use do_action instead of function_exists
+			do_action('forcefield_endpoint_options');
 
-		// --- close REST API tab ---
+		// --- close APIs tab ---
+		echo '</div>';
+
+
+		// =====================
+		// Vulnerability Checker
+		// =====================
+		// 0.9.8: added vulnerability checker options
+		if ($currenttab != 'vuln-checker') {$hide = ' style="display:none;"';} else {$hide = '';}
+		echo '<div id="vuln-checker"'.$hide.'><table>';
+
+			// --- table heading ---
+			echo '<table><tr><td><h3 style="margin-bottom:10px;">'.__('Vulnerability Checker','forcefield').'</h3></td></tr>';
+
+			// --- check API token ---
+			$token = forcefield_get_setting('vuln_api_token', false);
+			if ($token && (trim($token) != '')) {
+				$args = array(
+					'timeout'		=> 5,
+					'user-agent'	=> 'WordPress/'.$wp_version.'; '.home_url(),
+					'headers' 		=> array('Authorization: Token token='.$token),
+				);
+				$testurl = 'https://wpvulndb.com/api/v3/wordpresses/4910';
+				$response = forcefield_get_response_data($testurl, $args);
+				echo "<!-- API Response: ".print_r($response,true)." -->".PHP_EOL;
+				if (!$response || (isset($response['error']) && strstr($response['error'], 'HTTP Token: Access denied.'))) {
+					$crossurl = plugins_url('images/cross.png', __FILE__);
+					$verified = "<img style='display:inline;' src='".$crossurl."'>";
+					$verified .= " <span style='color:#d50000;'>".__('API Key Unverified','forcefield')."</span>";
+					delete_option('forcefield_wbvulndb_verified');
+				} else {
+					$tickurl = plugins_url('images/tick.png', __FILE__);
+					$verified = "<img style='display:inline;' src='".$tickurl."'>";
+					$verified .= " <span style='color:#00d500;'>".__('API Key Verified','forcefield')."</span>";}
+					update_option('forcefield_wbvulndb_verified', true);
+			} else {$verified = '';}
+
+			// --- vulnerability checker API key (vuln_api_token) ---
+			echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>'.__('WPVulnDB API Key','forcefield').'</b><br>';
+			echo $verified.'</td><td width="20"></td>';
+			echo '<td colspan="5" style="vertical-align:top">';
+			echo '<input type="text" name="ff_vuln_api_token" value="'.$token.'" style="width:100%;margin-top:10px;">';
+			echo '<br>'.__('Key for the WP Vulnerability Database API (Optional)','forcefield');
+			echo ' <a href="https://wpvulndb.com/api/" target=_blank>'.__('Get One','forcefield').'</a>';
+			echo '</td></tr>';
+			
+			// --- core vulnerability check frequency (vuln_check_core) ---
+			echo '<tr><td class="valigntop"><b>'.__('Core Checkups','forcefield').'</b></td>';
+			echo '<td width="20"></td><td colspan="5"><select name="ff_vuln_check_core">';
+			echo '<option value="off">'.__('Off','forcefield').'</option>';
+			$frequency = forcefield_get_setting('vuln_check_core', false);
+			foreach ($intervals as $key => $interval) {
+				if ($frequency == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
+			}
+			echo '</select><div style="margin-left:20px; display:inline-block;">';
+			echo __('How often core vulnerabilities are checked.','forcefield').'</div></td></tr>';
+
+			// --- plugin vulnerability check frequency (vuln_check_plugins) ---
+			echo '<tr><td class="valigntop"><b>'.__('Plugin Checkups','forcefield').'</b></td>';
+			echo '<td width="20"></td><td colspan="5"><select name="ff_vuln_check_plugins">';
+			echo '<option value="off">'.__('Off','forcefield').'</option>';
+			$frequency = forcefield_get_setting('vuln_check_plugins', false);
+			foreach ($intervals as $key => $interval) {
+				if ($frequency == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
+			}
+			echo '</select><div style="margin-left:20px; display:inline-block;">';
+			echo __('How often plugin vulnerabilities are checked.','forcefield').'</div></td></tr>';
+
+			// --- theme vulnerability check frequency (vuln_check_themes) ---
+			echo '<tr><td class="valigntop"><b>'.__('Theme Checkups','forcefield').'</b></td>';
+			echo '<td width="20"></td><td colspan="5"><select name="ff_vuln_check_themes">';
+			echo '<option value="off">'.__('Off','forcefield').'</option>';
+			$frequency = forcefield_get_setting('vuln_check_themes', false);
+			foreach ($intervals as $key => $interval) {
+				if ($frequency == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
+			}
+			echo '</select><div style="margin-left:20px; display:inline-block;">';
+			echo __('How often theme vulnerabilities are checked.','forcefield').'</div></td></tr>';
+	
+			// --- core vulnerability alert email addresses (vuln_core_emails) ---
+			$coreemails = forcefield_get_setting('vuln_core_emails', false);
+			echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>'.__('Core Alert Emails','forcefield').'</b></td><td width="20"></td>';
+			echo '<td colspan="3"><input type="text" name="ff_vuln_core_emails" value="'.$coreemails.'" style="width:100%;margin-top:10px;"></td>';
+			echo '</tr>';
+
+			// --- plugin vulnerability alert email addresses (vuln_plugin_emails) ---
+			$pluginemails = forcefield_get_setting('vuln_plugin_emails', false);
+			echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>'.__('Plugin Alert Emails','forcefield').'</b></td><td width="20"></td>';
+			echo '<td colspan="3"><input type="text" name="ff_vuln_plugin_emails" value="'.$pluginemails.'" style="width:100%;margin-top:10px;"></td>';
+			echo '</tr>';
+
+			// --- core vulnerability alert email addresses (vuln_theme_emails) ---
+			$themeemails = forcefield_get_setting('vuln_theme_emails', false);
+			echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>'.__('Theme Alert Emails','forcefield').'</b></td><td width="20"></td>';
+			echo '<td colspan="3"><input type="text" name="ff_vuln_theme_emails" value="'.$themeemails.'" style="width:100%;margin-top:10px;"></td>';
+			echo '</tr>';
+
+			// --- close vulnerability checker table ---
+			echo '</table>';
+		
+		// --- close vulnerability checker tab ---
 		echo '</div>';
 
 		// 0.9.6: removed auto updates options display
@@ -947,7 +1067,8 @@ function forcefield_admin_page() {
 		// --- Reset Button ---
 		echo '<tr><td width="33%" style="text-align:right;">'.PHP_EOL;
 			// 0.9.7: fix to incorrect javascript function (returntodefaults)
-			echo '<input type="submit" value="'.__('Reset to Defaults','forcefield').'" class="button-secondary" onclick="return resettodefaults();" style="margin-right:20px;">'.PHP_EOL;
+			// 0.9.8: change type from submit to button so enter = save
+			echo '<input type="button" value="'.__('Reset to Defaults','forcefield').'" class="button-secondary" onclick="return resettodefaults();" style="margin-right:20px;">'.PHP_EOL;
 		echo '</td>';
 
 		// --- middle spacer ---
@@ -974,9 +1095,10 @@ function forcefield_admin_page() {
 	echo '<div id="ip-blocklist" style="min-height:500px;'.$hide.'">';
 
 	// --- maybe load pro blocklist interface ---
-	// 0.9.2: [PRO] Manual IP Whitelist / Blacklist (with context / expiry options)
-	if (function_exists('forcefield_pro_lists_interface')) {forcefield_pro_lists_interface();}
-
+	// 0.9.2: [PRO] Manual IP List Interface
+	// 0.9.4: use do_action instead of function_exists
+	do_action('forcefield_lists_interface');
+	
 	// --- blocklist heading ---
 	echo '<h3 style="margin-bottom:10px;">'.__('IP Blocklist','forcefield').'</h3>';
 

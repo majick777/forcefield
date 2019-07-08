@@ -5,7 +5,7 @@ Plugin Name: ForceField
 Plugin URI: http://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Strong and Flexible Access, User Action, API and Role Protection
-Version: 0.9.7
+Version: 0.9.8
 Author URI: http://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
@@ -29,6 +29,7 @@ if (!function_exists('add_action')) {exit;}
 // --- Action Tokenizer
 // --- Authentication Filters
 // -- Blocklist Module
+// -- Vulnerability Checker Module
 // === Plugin Settings ===
 // - Transfer Old Settings
 // - Process Special Settings
@@ -56,12 +57,13 @@ if (!function_exists('add_action')) {exit;}
 // Development TODOs
 // -----------------
 // - Idea: single device sign-ons (force logout other sessions)
-// - Idea: track changes to options table values
+// - Idea: track changes to more options table values
 // -- check home and siteurl options against WP_HOME and WP_SITEURL constants ?
 // -- check / protect wp_user_roles, membership and default_role option for changes ?
 // + add WP CLI commands for clearing IP blocklists
 // ? turn XML RPC method disable settings into on/off switches ?
-// - handle IPv6 blocklist range checking ?
+// ? handle IPv6 blocklist range checking ?
+// - Idea: obscure all stylesheet and resource URL paths
 
 
 // --------------------
@@ -175,6 +177,17 @@ $options = array(
 	// 0.9.7: removed REST API prefix changes (this filter is better hardcoded in mu-plugins)
 	// 'restapi_prefix'		=> array('type' => 'alphanumeric', 'default' => ''),
 
+	// --- Vulnerability Checker ---
+	// 0.9.8: added vulnerability checker options
+	'vuln_api_token'		=> array('type' => 'text', 'default' => ''),
+	// if (strstr($response['error'], 'HTTP Token: Access denied.')) {}
+	'vuln_check_core'		=> array('type' => 'frequency', 'default' => 'daily'),
+	'vuln_check_plugins'	=> array('type' => 'frequency', 'default' => 'hourly'),
+	'vuln_check_themes'		=> array('type'	=> 'frequency', 'default' => 'twicedaily'),
+	'vuln_core_emails'		=> array('type' => 'emails', 'default' => $adminemail),
+	'vuln_plugin_emails'	=> array('type' => 'emails', 'default' => $adminemail),
+	'vuln_theme_emails'		=> array('type' => 'emails', 'default' => $adminemail),
+
 	// TODO: options backup protection
 	// 'options_alert_email'	=> array('type' => 'emails', 'default' => $adminemail),
 	// 'options_backup_checks'	=> array('type' => 'checkbox', 'default' => 'yes'),
@@ -182,12 +195,12 @@ $options = array(
 
 	// --- Auto Updates ---
 	// 0.9.6: disabled auto update options
-	// 'autoupdate_self' => 'no',
-	// 'autoupdate_inactive_plugins' => 'no',
-	// 'autoupdate_inactive_themes' => 'no',
+	// 'autoupdate_self' => => array('type' => 'checkbox', 'default' => 'no'),
+	// 'autoupdate_inactive_plugins' => array('type' => 'checkbox', 'default' => 'no'),
+	// 'autoupdate_inactive_themes' => array('type' => 'checkbox', 'default' => 'no'),
 
 	// --- Admin Page Interface ---
-	'current_tab'			=> array('type' => 'general/role-protect/user-actions/api-access/ip-blocklist',
+	'current_tab'			=> array('type' => 'general/role-protect/user-actions/api-access/vuln-check/ip-blocklist',
 									'default' => 'general'),
 
 );
@@ -221,10 +234,10 @@ $args = array(
 	// --- Menus and Links ---
 	'title'			=> 'ForceField',
 	'parentmenu'	=> 'wordquest',
-	'home'			=> 'http://wordquest.org/plugins/forcefield/',
+	'home'			=> 'http://wpmedic.tech/forcefield/',
 	'support'		=> 'http://wordquest.org/quest-category/'.$slug.'/',
 	'share'			=> 'http://wordquest.org/plugins/forcefield/#share',
-	'donate'		=> 'http://wordquest.org/contribute/?plugin=forcefield',
+	'donate'		=> 'https://patreon.com/wpmedic',
 	'donatetext'	=> __('Support ForceField'),
 	'welcome'		=> '',	// TODO
 
@@ -261,6 +274,13 @@ include_once($forcefielddir.'forcefield-auth.php');
 
 // --- Blocklist Module ---
 include_once($forcefielddir.'forcefield-block.php');
+
+// --- Vulnerability Checker Module ---
+include_once($forcefielddir.'forcefield-vuln.php');
+
+// --- Preserve Options Module ---
+// include_once($forcefielddir.'forcefield-preserve.php');
+
 
 // ----------------------------
 // Start Plugin Loader Instance
@@ -864,7 +884,8 @@ function forcefield_filtered_error($error, $errormessage, $status=false, $errors
 	$datetime = date('Y-m-d H:i:s', time());
 	$ip = forcefield_get_remote_ip();
 	$debugline = '['.$datetime.'] '.$ip.': '.$error.' - '.$errormessage.' ('.$status.')'.PHP_EOL;
-	error_log($debugline, 3, dirname(__FILE__).'/debug/auth-errors.log');
+	// error_log($debugline, 3, dirname(__FILE__).'/debug/auth-errors.log');
+	error_log($debugline);
 
 	// --- return errors ---
 	if ($errors && (is_wp_error($errors)) ) {

@@ -528,17 +528,17 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 				}
 
 				if ($reminder) {
-						// --- add an admin reminder notice ---
-						global $wqreminder; $wqreminder[$pluginslug] = $wqplugin;
-						$wqreminder[$pluginslug]['days'] = $dayssince;
-						$wqreminder[$pluginslug]['notice'] = $reminder;
-						add_action('admin_notices', 'wqhelper_reminder_notice');
-					}
-				} else {
-					$sidebaroptions['installdate'] = date('Y-m-d');
-					update_option($prefix.'_sidebar_options', $sidebaroptions);
-				}
-			}
+                    // --- add an admin reminder notice ---
+                    global $wqreminder; $wqreminder[$pluginslug] = $wqplugin;
+                    $wqreminder[$pluginslug]['days'] = $dayssince;
+                    $wqreminder[$pluginslug]['notice'] = $reminder;
+                    add_action('admin_notices', 'wqhelper_reminder_notice');
+                }
+            } else {
+                $sidebaroptions['installdate'] = date('Y-m-d');
+                update_option($prefix.'_sidebar_options', $sidebaroptions);
+            }
+        }
   	}
  };
 }
@@ -613,7 +613,7 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 			// --- Share Link ---
             // 1.7.2: add share theme / plugin link
             // 1.7.4: added share link icon
-            echo "<li'>";
+            echo "<li>";
             echo "<span style='color:#E0E;' class='dashicons dashicons-share'></span> ";
 			if ($pluginslug == 'bioship') {
 				echo "<a class='notice-link' href='".$wqurls['bio']."#share' target=_blank>&rarr; ".wqhelper_translate('Share this Theme')."</a>";
@@ -653,8 +653,8 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
         // --- notice styles ---
         // 1.7.5: added notice styling
         echo "<style>#wq-reminders ul {list-style:none; padding:0; margin:0;}
-        #wq-reminder ul li {display:inline-block; margin-left:15px;}
-        #wq-reminder span.dashicons {display:inline; font-size:16px; color:#00E; vertical-align:middle;}
+        #wq-reminders ul li {display:inline-block; margin-left:15px;}
+        #wq-reminders span.dashicons {display:inline; font-size:16px; color:#00E; vertical-align:middle;}
         .notice-link {text-decoration:none;} .notice-link:hover {text-decoration:underline;}</style>";
 
         // --- notice dismissal iframe ---
@@ -1684,11 +1684,16 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 	if ($sidebaroptions['donationboxoff'] == 'checked') {$hide = " style='display:none;'>";} else {echo $hide = '';}
 	echo '<div id="donate"'.$hide.'>';
 
+    echo "<!--- ".$freepremium." -->";
 	if ($freepremium == 'free') {
 
         echo '<div class="stuffbox" style="width:250px;background-color:#ffffff;">';
         
-        echo '<h3>'.wqhelper_translate('Show Your Support').'</h3><div class="inside">';
+        // --- box title ---
+        // 1.7.4: different title for patreon/paypal
+        if (strstr($donatelink, 'patreon')) {$boxtitle = wqhelper_translate('Become a Supporter');}
+        else {$boxtitle = wqhelper_translate('Support Subscription');}
+        echo '<h3>'.$boxtitle.'</h3><div class="inside">';
         
         // --- maybe call special top ---
         if (function_exists($prefix.'_donations_special_top')) {
@@ -1697,6 +1702,7 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
         }
 
         // --- patreon support or paypal donations ---
+        // 1.7.4: different title for patreon/paypal
         if (strstr($donatelink, 'patreon')) {wqhelper_sidebar_patreon_button($args);}
         else {wqhelper_sidebar_paypal_donations($args);}
 
@@ -1863,7 +1869,8 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
     echo "<img id='patreon-button' src='".$imageurl."'></a><center>".PHP_EOL;
 
     // --- image hover styling ---
-	echo "<style>#patreon-button {opacity: 0.9;} #patreon-button:hover {opacity: 1;}</style>".PHP_EOL;
+    echo "<style>.supporter-message {font-size:15px; margin-bottom:5px;}
+    #patreon-button {opacity: 0.9;} #patreon-button:hover {opacity: 1;}</style>".PHP_EOL;
 
  };
 }

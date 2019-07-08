@@ -58,7 +58,10 @@ function forcefield_blocklist_get_contexts() {
 function forcefield_whitelist_check($context, $ip=false) {
 
 	global $wpdb, $forcefield;
-	if (!$ip) {$ip = $forcefield['ip'];}
+	if (!$ip) {
+		if (!isset($forcefield['ip'])) {$forcefield['ip'] = forcefield_get_remote_ip();}
+		$ip = $forcefield['ip'];
+	}
 
 	// --- check permanent whitelist (no context) ---
 	$whitelist = forcefield_get_setting('blocklist_whitelist');
@@ -75,14 +78,9 @@ function forcefield_whitelist_check($context, $ip=false) {
 
 	// --- maybe check Pro whitelist ---
 	// 0.9.2: [PRO] maybe check for manual whitelist table records
-	if (function_exists('forcefield_pro_whitelist_check')) {
-		if (forcefield_pro_whitelist_check($context, $ip)) {return true;}
-	}
-	if (function_exists('forcefield_pro_whitelist_check_range')) {
-		if (forcefield_pro_whitelist_check_range($context, $ip)) {return true;}
-	}
-
-	return false;
+	// 0.9.8: use apply_filters instead of function_exists
+	$whitelisted = apply_filters('forcefield_whitelist_check', false, $context, $ip);
+	return $whitelisted;
 }
 
 // ------------------
@@ -92,7 +90,10 @@ function forcefield_whitelist_check($context, $ip=false) {
 function forcefield_blacklist_check($context, $ip=false) {
 
 	global $wpdb, $forcefield;
-	if (!$ip) {$ip = $forcefield['ip'];}
+	if (!$ip) {
+		if (!isset($forcefield['ip'])) {$forcefield['ip'] = forcefield_get_remote_ip();}
+		$ip = $forcefield['ip'];
+	}
 
 	// --- permanent blacklist check (no context) ---
 	if (!isset($forcefield['blacklistchecked'])) {
@@ -112,13 +113,9 @@ function forcefield_blacklist_check($context, $ip=false) {
 
 	// --- maybe check Pro whitelist records ---
 	// 0.9.2: [PRO] maybe check for manual whitelist records
-	if (function_exists('forcefield_pro_blacklist_check')) {
-		if (forcefield_pro_blacklist_check($context, $ip)) {return true;}
-	}
-	if (function_exists('forcefield_pro_blacklist_check_range')) {
-		if (forcefield_pro_blacklist_check_range($context, $ip)) {return true;}
-	}
-	return false;
+	// 0.9.8: use apply_filters instead of function_exists
+	$blacklisted = apply_filters('forcefield_blacklist_check', false, $context, $ip);
+	return $blacklisted;
 }
 
 // ------------------
