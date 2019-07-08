@@ -477,6 +477,45 @@ function forcefield_options_admin_page() {
 		echo '<td width="10"></td><td>('.__('optional','forcefield').')</td></tr>';
 
 		// -----------------------
+		// BuddyPress Registration
+		// -----------------------
+		// 0.9.5: added options for BuddyPress registration token
+		echo '<tr><td><h3 style="margin-bottom:10px;">'.__('BuddyPress Registration','forcefield').'</h3></td>';
+		echo '<td> </td><td> </td><td> </td><td><b>'.__('Affects BuddyPress Only','forcefield').'</b></td></tr>';
+
+		// registration referer check
+		echo '<tr><td><b>'.__('Block if Missing HTTP Referer?','forcefield').'</b></td><td width="20"></td>';
+		echo '<td class="checkbox-cell"><input type="checkbox" name="ff_buddypress_norefblock" value="yes"';
+			if (forcefield_get_setting('ff_buddypress_norefblock', false) == 'yes') {echo ' checked';}
+		echo '></td><td width="10"></td>';
+		echo '<td>'.__('Block Registration if missing HTTP Referer Header.','forcefield').'</td>';
+		echo '<td width="10"></td><td>('.__('recommended','forcefield').')</td></tr>';
+
+		// registration token
+		echo '<tr><td><b>'.__('Require Registration Token?','forcefield').'</b></td><td width="20"></td>';
+		echo '<td class="checkbox-cell"><input type="checkbox" name="ff_buddypress_token" value="yes"';
+			if (forcefield_get_setting('ff_buddypress_token', false) == 'yes') {echo ' checked';}
+		echo '></td><td width="10"></td>';
+		echo '<td>'.__('Require Automatic Token for Registration.','forcefield').'</td>';
+		echo '<td width="10"></td><td>('.__('recommended','forcefield').')</td></tr>';
+
+		// missing registration token auth ban
+		echo '<tr><td><b>'.__('InstaBan IP if Missing Token?','forcefield').'</b></td><td width="20"></td>';
+		echo '<td class="checkbox-cell"><input type="checkbox" name="ff_buddypress_notokenban" value="yes"';
+			if (forcefield_get_setting('ff_buddypress_notokenban', false) == 'yes') {echo ' checked';}
+		echo '></td><td width="10"></td>';
+		echo '<td>'.__('Instantly Ban IP Address if missing Registration Token.','forcefield').'</td>';
+		echo '<td width="10"></td><td>('.__('recommended','forcefield').')</td></tr>';
+
+		// require SSL for registration
+		echo '<tr><td><b>'.__('Require SSL for Registration?','forcefield').'</b></td><td width="20"></td>';
+		echo '<td class="checkbox-cell"><input type="checkbox" name="ff_buddypress_requiressl" value="yes"';
+			if (forcefield_get_setting('ff_buddypress_requiressl', false) == 'yes') {echo ' checked';}
+		echo '></td><td width="10"></td>';
+		echo '<td>'.__('Require Secure Connection for User Registration.','forcefield').'</td>';
+		echo '<td width="10"></td><td>('.__('optional','forcefield').')</td></tr>';
+
+		// -----------------------
 		// Blog Signup (Multisite)
 		// -----------------------
 		echo '<tr><td><h3 style="margin-bottom:10px;">'.__('Blog Signup','forcefield').'</h3></td>';

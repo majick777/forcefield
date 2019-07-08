@@ -1,26 +1,26 @@
 === ForceField ===
 Contributors: majick
 Donate link: http://wordquest.org/donate/?plugin=forcefield
-Tags: login protect, bot protect, api access, admin protect
+Tags: login protect, bot protect, api access, admin protect, xml rpc, rest api, security
 Author URI: http://dreamjester.net
 Plugin URI: http://wordquest.net/plugins/forcefield/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.9.5
+Tested up to: 4.9.8
 Stable tag: trunk
 
-Flexible Protection for Login, Registration, Commenting, REST API and XML RPC.
+Flexible Protection for Login, Registration, Commenting, REST API, XML RPC and more...
 
 == Description ==
 
 Adds several layers of security to restrict access to common hacking attack vectors.
 
-**Token Protection**
+**Tokenized  Protection**
 
 Reduce Brute Force Password attacks, SPAM Comments, Fake User Registrations and Sploggers.
 Adds a dynamic Javascript Token field to all common user action forms:
-Login, Registration, Blog Signup (Multisite), Lost Password and Commenting
+Login, Registration (+BuddyPress Registration), Blog Signup (Multisite), Lost Password and Commenting
 Since the majority of bots do not have the capacity to recognize or handle javascript fields,
 their attempts at access via these actions are blocked, with repeat offender getting IP banned.
 
@@ -28,15 +28,15 @@ their attempts at access via these actions are blocked, with repeat offender get
 
 Adds several ways to restrict access to XML RPC and REST API features. While these *can* be disabled,
 there are several other options provided to severely limit bot and other unauthorized access while still
-being able to use these features as intended. Part of the aim of this plugin is to make these available 
-for everyone without needed to know how to code them: Multiple request slowdown, disable XML RPC logins, 
-logged in access only, restrict access to specified user roles, require secure connection.
+being able to use these features as intended! Part of the aim of this plugin is to make these options
+available for everyone without needing to code them: Multiple request slowdown, disable XML RPC logins, 
+logged in access only, restrict access to specified user roles, and require secure connection.
 
 **Admin Protection**
 
 A last line of defense against hackers who have managed to create their own administrator account!
 Automatically block, notify by email and/or *auto-delete* an account when an "administrator" logs in 
-who is not in an explicit whitelist of verified admin usernames. Goodbye escalated privelage attack.
+who is not in an *explicit whitelist* of verified admin usernames. Goodbye escalated privelage attack!
 
 **Behavioural Protection**
 
@@ -46,20 +46,16 @@ reduced via cooldown over time, with old records expired and later deleted (all 
 This process keeps protection high for fresh attacks while keeping the database free of record bloating.
 Also option to output a form to banned IPs to unblock themselves manually in case of false positives.
 
-**Update Protection**
-
-Out-dated plugins and themes are a security attack vector, so of course it's good to keep them updated. 
-But did you know inactive plugins are still a vulnerability? Don't get hacked because of something you are
-not even using right now! ForceField allows you to auto-update inactive plugins and themes. Sorted.
-
 [ForceField Home](http://wordquest.org/plugins/forcefield/)
 [Support Forum](http://wordquest.org/support/forcefield/)
+
 
 == Installation ==
 
 1. Upload `forcefield.zip` via the Wordpress plugin installer.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 3. Access the Plugin Settings via the WordQuest -> ForceField menu
+
 
 == Frequently Asked Questions ==
 
@@ -68,6 +64,12 @@ not even using right now! ForceField allows you to auto-update inactive plugins 
 
 
 == Changelog ==
+
+= 0.9.5 =
+* Added BuddyPress registration token field 
+* Fix multiple undefined function forcefield_record_ip
+* Fix record retrieval by reason without specific IP
+* Removed auto-update features for retesting
 
 = 0.9.4 =
 * Better localhost Detection for Local Usage
