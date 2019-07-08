@@ -5,28 +5,120 @@ Plugin Name: ForceField
 Plugin URI: http://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Flexible Protection for Login, Registration, Commenting, REST API and XML RPC.
-Version: 0.9.4
+Version: 0.9.5
 Author URI: http://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
 */
 
-// [FOR TESTING ONLY] uncomment to bypass REST API Nonce Check
-// define('REST_NONCE_BYPASS', true);
-
-// TODO: add button to run automatic updates now?
-// TODO: add BuddyPress registration token field?
-
-
 // ==================
 // === FORCEFIELD ===
 // ==================
+//
+// === Plugin Setup ===
+// - Set Plugin Values
+// - Check for Update Checker
+// - Load WordQuest/Pro Functions
+// - Load Freemius SDK
+// - Custom Freemius Connect Message
+// === Plugin Settings ===
+// - Get Plugin Settings
+// - Get Default Settings
+// - Add Defaults on Activation
+// - Update Plugin Settings
+// - Add Admin Options Page
+// - Admin Options Page Loader
+// === Helper Functions ===
+// - Simple Alert Message
+// - Get Remote IP Address
+// - Get IP Address keys
+// - Get Server IP Address
+// - Get IP Address Type
+// - Check if IP is in IP Range
+// - 403 Forbidden and Exit
+// - Filter WP Errors
+// - Filter Login Error Messages (Hints)
+// - Block Unwhitelisted Administrators
+// - Email Alerts From Name
+// - Get Transient Timeout
+// === XML RPC ===
+// - maybe Disable XML RPC Entirely
+// - maybe Disable XML RPC Authenticated Methods
+// - maybe Slowdown XML RPC Calls
+// - maybe Remove XML RPC Link (RSD)
+// - maybe Disable XML RPC Methods
+// - maybe Disable Self Pings
+// - maybe disable Anonymous Commenting
+// === REST API ===
+// - maybe Disable/Restrict REST API
+// - maybe Slowdown REST API Calls
+// - maybe Disable REST JSONP
+// - maybe Remove REST API Info
+// - maybe Change REST API Prefix
+// - maybe Disable User Enumeration Endpoint
+// - maybe disable REST API Anonymous Commenting
+// === Authentication ===
+// - XML RPC Authentication
+// - XML RPC Error Message (Banned)
+// - XML RPC Error Message (Blocked)
+// - XML RPC requires SSL Message
+// - Login Token Authentication
+// - Registration Token Authentication
+// - Blog Signup Authenticate
+// - Lost Password Token Authentication
+// - Commenting Authenticate
+// - BuddyPress Registration Authenticate
+// === IP Blocklist ===
+// - Blocklist Contexts
+// - IP Whitelist Check
+// - IP Blacklist Check
+// - Check IP Blocklist
+// - Create IP Blocklist Table
+// - set Blocklist Table Variables
+// - Check Blocklist Table Exists
+// - Clear IP Blocklist Table
+// - check IP in Blocklist
+// - get IP Blocklist Records
+// - Add/Update an IP Address Record
+// - Check Transgressions against Limit
+// - Get Default Transgression Limits
+// - Get Translated Block Reasons
+// - Blocklist Transgression Cooldown
+// - Blocklist Expire Old Rows
+// - Blocklist Delete Old Rows
+// - Blocklist Delete Record
+// - AJAX Blocklist Delete Record
+// - AJAX Blocklist Clear Table
+// - Manual Unblock Form Output
+// - AJAX Unblock Action
+// - Blocklist Table Cleanup
+// - WP CRON Schedule Table Cleanup
+// === Data Lists ===
+// - CRON Intervals
+// - Expiry Times
+
+
+// Development TODOs
+// -----------------
+// - maybe modulize tokens/blocklist/update functions ?
+// - turn XML RPC method disable settings into on/off switches ?
+// - handle IPv6 blocklist range checking ?
+// - demote admin role option
+
+// [DEVELOPMENT ONLY] you can uncomment this to bypass all REST API Nonce Checks
+// (this can be helpful to eliminate REST nonces as a cause of endpoint failure)
+// define('REST_NONCE_BYPASS', true);
+
+
+// --------------------
+// === Plugin Setup ===
+// --------------------
 
 // set Plugin Values
 // -----------------
 global $wordquestplugins;
 $vslug = $vforcefieldslug = 'forcefield';
-$wordquestplugins[$vslug]['version'] = $vforcefieldversion = '0.9.4';
+$wordquestplugins[$vslug]['version'] = $vforcefieldversion = '0.9.5';
 $wordquestplugins[$vslug]['title'] = 'ForceField';
 $wordquestplugins[$vslug]['namespace'] = 'forcefield';
 $wordquestplugins[$vslug]['settings'] = $vpre = 'ff';
@@ -165,6 +257,13 @@ function forcefield_get_default_settings() {
 		'register_norefblock' => 'yes',
 		'register_requiressl' => 'no',
 
+		/* BuddyPress Registration */
+		// 0.9.5: added BuddyPress token field
+		'buddypress_token' => 'yes',
+		'buddypress_notokenban'	=> 'yes',
+		'buddypress_norefblock'	=> 'yes',
+		'buddypress_requiressl'	=> 'no',
+
 		/* Blog Signup (Multisite) */
 		'signup_token' => 'yes',
 		'signup_notokenban' => 'yes',
@@ -209,9 +308,9 @@ function forcefield_get_default_settings() {
 		'restapi_prefix' => '',
 
 		/* Auto Updates */
-		'autoupdate_inactive_plugins' => 'no',
-		'autoupdate_inactive_themes' => 'no',
-		'autoupdate_self' => 'no',
+		// 'autoupdate_self' => 'no',
+		// 'autoupdate_inactive_plugins' => 'no',
+		// 'autoupdate_inactive_themes' => 'no',
 
 		/* Generic Error Message */
 		'error_message' => __('Request Failed. Authentication Error.','forcefield'),
@@ -234,7 +333,7 @@ function forcefield_get_default_settings() {
 }
 
 
-// add Defaults on Activation
+// add Defaults on Activation
 // --------------------------
 register_activation_hook(__FILE__, 'forcefield_add_settings');
 function forcefield_add_settings() {
@@ -318,6 +417,12 @@ function forcefield_update_settings() {
 		'register_norefblock' => 'checkbox',
 		'register_requiressl' => 'checkbox',
 
+		/* BuddyPress Registration */
+		'buddypress_token' => 'checkbox',
+		'buddypress_notokenban' => 'checkbox',
+		'buddypress_norefblock' => 'checkbox',
+		'buddypress_requiressl' => 'checkbox',
+
 		/* Blog Signup (Multisite) */
 		'signup_token' => 'checkbox',
 		'signup_notokenban' => 'checkbox',
@@ -362,9 +467,9 @@ function forcefield_update_settings() {
 		'restapi_prefix' => 'specialtext',
 
 		/* Auto Updates */
-		'autoupdate_inactive_plugins' => 'checkbox',
-		'autoupdate_inactive_themes' => 'checkbox',
-		'autoupdate_self' => 'checkbox',
+		// 'autoupdate_self' => 'checkbox',
+		// 'autoupdate_inactive_plugins' => 'checkbox',
+		// 'autoupdate_inactive_themes' => 'checkbox',
 
 		/* Admin UI */
 		'current_tab' => 'general/user-actions/xml-rpc/rest-api/ip-blocklist',
@@ -664,8 +769,8 @@ function forcefield_forbidden_exit() {
 	header('Connection: Close'); exit;
 }
 
-// Filtered WP Error
-// -----------------
+// Filter WP Errors
+// ----------------
 // 0.9.1: added abstract error wrapper
 function forcefield_filtered_error($verror, $verrormessage, $vstatus=false, $verrors=false) {
 	if (!$vstatus) {$vstatus = 403;}
@@ -676,8 +781,8 @@ function forcefield_filtered_error($verror, $verrormessage, $vstatus=false, $ver
 	} else {return new WP_Error($verror, $verrormessage, array('status' => $vstatus));}
 }
 
-// maybe filter the Login Error Messages (Hints)
-// -------------------------------------
+// maybe Filter Login Error Messages (Hints)
+// -----------------------------------------
 add_filter('login_errors', 'forcefield_login_error_message');
 function forcefield_login_error_message($vmessage) {
 	$vremovehints = forcefield_get_setting('login_nohints');
@@ -706,6 +811,8 @@ function forcefield_administrator_validation() {
 			// maybe send admin alert email
 			$vadminemail = forcefield_get_setting('admin_email');
 			$valertemail = forcefield_get_setting('admin_alert');
+			// 1.5.0: shift get setting up so available in email body
+			$vautodelete = forcefield_get_setting('admin_autodelete');
 
 			if ( ($valertemail == 'yes') && ($vadminemail != '') ) {
 				// set mail from name
@@ -733,7 +840,6 @@ function forcefield_administrator_validation() {
 			forcefield_blocklist_record_ip('admin_bad');
 
 			// maybe autodelete unwhitelisted admin!
-			$vautodelete = forcefield_get_setting('admin_autodelete');
 			if ($vautodelete) {
 				if (!function_exists('wp_delete_user')) {include(ABSPATH.WPINC.'/user.php');}
 				wp_delete_user($user->data->ID);
@@ -750,6 +856,15 @@ function forcefield_administrator_validation() {
 function forcefield_email_from_name() {
 	// 0.9.1: forcefield-specific filter for the email from name
 	return apply_filters('forcefield_emails_from_name', get_bloginfo('name'));
+}
+
+// Get Transient Timeout
+// ---------------------
+function forcefield_get_transient_timeout($transient) {
+	global $wpdb;
+	$query = "SELECT option_value FROM ".$wpdb->options." WHERE option_name LIKE '%_transient_timeout_".$transient."%'";
+	$timeout = $wpdb->get_var($query);
+	return $timeout;
 }
 
 
@@ -783,8 +898,8 @@ function forcefield_xmlrpc_disable_auth($venabled) {
 	return $venabled;
 }
 
-// maybe Slowdown XML RPC
-// ----------------------
+// maybe Slowdown XML RPC Calls
+// ----------------------------
 add_filter('xmlrpc_enabled', 'forcefield_xmlrpc_slowdown');
 add_filter('xmlrpc_login_error', 'forcefield_xmlrpc_slowdown');
 function forcefield_xmlrpc_slowdown($arg) {
@@ -798,7 +913,7 @@ function forcefield_xmlrpc_slowdown($arg) {
 }
 
 // maybe Remove XML RPC Link (RSD)
-// -------------------------
+// -------------------------------
 add_action('plugins_loaded', 'forcefield_remove_rsd_link');
 function forcefield_remove_rsd_link() {
 	if (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) {
@@ -850,15 +965,6 @@ function forcefield_disable_self_pings($vlinks) {
 add_filter('xmlrpc_allow_anonymous_comments', 'forcefield_xmlrpc_anonymous_comments');
 function forcefield_xmlrpc_anonymous_comments($allow) {
 	$vallowanon = forcefield_get_setting('xmlrpc_anoncomments');
-	if ($vallowanon != 'yes') {$allow = false;}
-	return $allow;
-}
-
-// maybe disable Anonymous Commenting via REST API
-// -----------------------------------------------
-add_filter('rest_allow_anonymous_comments', 'forcefield_restapi_anonymous_comments');
-function forcefield_restapi_anonymous_comments($allow) {
-	$vallowanon = forcefield_get_setting('restapi_anoncomments');
 	if ($vallowanon != 'yes') {$allow = false;}
 	return $allow;
 }
@@ -937,8 +1043,8 @@ function forcefield_restapi_access($access) {
     return $access;
 }
 
-// maybe Slowdown REST API
-// -----------------------
+// maybe Slowdown REST API Calls
+// -----------------------------
 add_filter('rest_jsonp_enabled', 'forcefield_restapi_slowdown');
 add_filter('rest_authentication_errors', 'forcefield_restapi_slowdown');
 function forcefield_restapi_slowdown($arg) {
@@ -951,8 +1057,8 @@ function forcefield_restapi_slowdown($arg) {
 	return $arg;
 }
 
-// maybe Disable JSONP (REST API)
-// -------------------
+// maybe Disable REST JSONP
+// ------------------------
 add_filter('rest_jsonp_enabled', 'forcefield_jsonp_disable');
 function forcefield_jsonp_disable($venabled) {
 	$vnojsonp = forcefield_get_setting('restapi_nojsonp');
@@ -982,8 +1088,8 @@ function forcefield_restapi_prefix($vprefix) {
 	return $vprefix;
 }
 
-// maybe Disable REST API User Enumeration Endpoint
-// ------------------------------------------------
+// maybe Disable User Enumeration Endpoint
+// ---------------------------------------
 add_filter('rest_endpoints', 'forcefield_endpoint_restriction', 99);
 function forcefield_endpoint_restriction($endpoints) {
 	if (forcefield_get_setting('restapi_nouserlist') == 'yes') {
@@ -991,6 +1097,15 @@ function forcefield_endpoint_restriction($endpoints) {
 		if (isset($endpoints['/wp/v2/users/(?P<id>[\d]+)'] ) ) {unset($endpoints['/wp/v2/users/(?P<id>[\d]+)']);}
  	}
     return $endpoints;
+}
+
+// maybe disable REST API Anonymous Commenting
+// -------------------------------------------
+add_filter('rest_allow_anonymous_comments', 'forcefield_restapi_anonymous_comments');
+function forcefield_restapi_anonymous_comments($allow) {
+	$vallowanon = forcefield_get_setting('restapi_anoncomments');
+	if ($vallowanon != 'yes') {$allow = false;}
+	return $allow;
 }
 
 // maybe Remove All REST API Endpoints
@@ -1002,7 +1117,7 @@ function forcefield_endpoints_remove() {
 
 // REST Nonce Bypass
 // -----------------
-// 0.9.2: [TEST USE ONLY!] REST API Nonce Check Bypass
+// 0.9.2: [DEV USE ONLY!] REST API Nonce Check Bypass
 add_filter('rest_authentication_errors', 'forcefield_rest_nonce_bypass', 99);
 function forcefield_rest_nonce_bypass($access) {
 	if (defined('REST_NONCE_BYPASS') && REST_NONCE_BYPASS) {
@@ -1018,8 +1133,12 @@ function forcefield_rest_nonce_bypass($access) {
 
 // Check for Existing Token
 // ------------------------
-function forcefield_check_token($vcontext) {
+function forcefield_check_token($vcontext, $vgetexpiry=false) {
+
 	global $vforcefield;
+
+	$vdebug = true;
+	// $vdebug = false;
 
 	// validate IP address to IP key
 	$viptype = forcefield_get_ip_type($vforcefield['ip']);
@@ -1029,11 +1148,30 @@ function forcefield_check_token($vcontext) {
 	elseif ($viptype == 'ip6') {$vipaddress = str_replace(':', '--', $vforcefield['ip']);}
 	else {return false;}
 
-	// return transient token value
+	// get transient token value by token key
+	$vtoken = array();
 	$vtransientid = $vcontext.'_token_'.$vipaddress;
-	$vtoken = get_transient($vtransientid);
+	if ($vdebug) {echo "Transient ID: ".$vtransientid.PHP_EOL;}
+	$vtokenvalue = get_transient($vtransientid);
+	if ($vtokenvalue) {$vtoken['value'] = $vtokenvalue;}
+
+	// 0.9.5: maybe return transient expiry time also for consistency
+	if ($vgetexpiry) {
+		$vtimeout = forcefield_get_transient_timeout($vtransientid);
+		if ($vtimeout) {
+			$vtime = time();
+			if ($vdebug) {
+				echo "Current Time: ".$vtime.PHP_EOL;
+				echo "Expiry Time: ".$vtimeout.PHP_EOL;
+			}
+			$vexpiry = $vtimeout - $vtime;
+			$vtoken['expiry'] = $vexpiry;
+		}
+	}
+	if ($vdebug) {echo print_r($vtoken, true);}
 	return $vtoken;
 }
+
 
 // Add Token Fields to Forms
 // -------------------------
@@ -1048,6 +1186,11 @@ function forcefield_register_field() {forcefield_add_field('register');}
 function forcefield_signup_field() {forcefield_add_field('signup');}
 function forcefield_lostpass_field() {forcefield_add_field('lostpass');}
 function forcefield_comment_field() {forcefield_add_field('comment');}
+
+// 0.9.5: add token field to BuddyPress registration form
+add_action('bp_after_account_details_fields', 'forcefield_buddypress_field');
+function forcefield_buddypress_field() {forcefield_add_field('buddypress'); do_action('bp_auth_token_errors');}
+
 
 // Add Form Field Abstract
 // -----------------------
@@ -1082,20 +1225,32 @@ function forcefield_signup_token() {forcefield_output_token('signup');}
 function forcefield_lostpass_token() {forcefield_output_token('lostpass');}
 function forcefield_comment_token() {forcefield_output_token('comment');}
 
+// 0.9.5: add token field to BuddyPress registration form
+add_action('wp_ajax_nopriv_forcefield_buddypress', 'forcefield_buddypress_token');
+function forcefield_buddypress_token() {forcefield_output_token('buddypress');}
+
 // Token Output Abstract
 // ---------------------
 function forcefield_output_token($vcontext) {
+
 	$vtoken = forcefield_create_token($vcontext);
-	if ( ($vtoken) && (is_array($vtoken)) ) {
+	// echo $vcontext.PHP_EOL;
+	// var_dump($vtoken); echo PHP_EOL;
+
+	if ($vtoken) {
 		// 0.9.3: some extra javascript obfuscation of token value
 		$vtokenchars = str_split($vtoken['value'], 1);
 		echo "<script>var bits = new Array(); ";
 		foreach ($vtokenchars as $vi => $vchar) {echo "bits[".$vi."] = '".$vchar."'; ";}
 		echo "bytes = bits.join('');
-		parent.document.getElementById('auth_token_".$vcontext."').value = bytes;</script>";
+		parent.document.getElementById('auth_token_".$vcontext."').value = bytes;</script>".PHP_EOL;
 
 		// 0.9.4: add a timer to auto-refresh expired token values
-		echo "<script>setTimeout(function() {window.location.reload();}, ".$vtoken['expiry'].");</script>";
+		if (isset($vtoken['expiry'])) {
+			$vcycle = $vtoken['expiry'] * 1000;
+			// TODO: use timer cycler rather than single timeout
+			echo "<script>setTimeout(function() {window.location.reload();}, ".$vcycle.");</script>";
+		}
 	} else {echo __('Error. No Token was generated.', 'forcefield');}
 	exit;
 }
@@ -1105,12 +1260,23 @@ function forcefield_output_token($vcontext) {
 function forcefield_create_token($vcontext) {
 	global $vforcefield;
 
+	$vdebug = true;
+	// $vdebug = false;
+
 	$vtokenize = forcefield_get_setting($vcontext.'_token');
-	if ($vtokenize != 'yes') {return false;}
+	if ($vdebug) {echo "Tokenize? ".$vtokenize.PHP_EOL;}
+	if ($vtokenize != 'yes') {
+		if ($vdebug) {echo "Tokens off for '".$vcontext."'";}
+		return false;
+	}
 
 	// maybe return existing token
-	$vtoken = forcefield_check_token($vcontext);
-	if ($vtoken) {return $vtoken;}
+	// 0.9.5: also check and return token expiry if found
+	$vtoken = forcefield_check_token($vcontext, true);
+	if (isset($vtoken['value'])) {
+		if ($vdebug) {echo "Existing Token: ".print_r($vtoken,true).PHP_EOL;}
+		return $vtoken;
+	}
 
 	// validate IP address and make IP key
 	$viptype = forcefield_get_ip_type($vforcefield['ip']);
@@ -1118,7 +1284,11 @@ function forcefield_create_token($vcontext) {
 	if ($viptype == 'localhost') {$vip = str_replace('.', '-', $vforcefield['ip']);}
 	elseif ($viptype == 'ip4') {$vip = str_replace('.', '-', $vforcefield['ip']);}
 	elseif ($viptype == 'ip6') {$vip = str_replace(':', '--', $vforcefield['ip']);}
-	else {return false;}
+	else {
+		if ($vdebug) {echo "No token generated for IP type '".$viptype."'";}
+		return false;
+	}
+	if ($vdebug) {echo "IP: ".$vip.PHP_EOL;}
 
 	// get and set token expiry length
 	$vexpirytime = forcefield_get_setting('blocklist_tokenexpiry');
@@ -1332,17 +1502,18 @@ function forcefield_login_validate($user, $username, $password) {
 		$vauthtoken = $_POST['auth_token'];
 		$vchecktoken = forcefield_check_token('login');
 
+		// 0.9.5: check now returns an array so we check 'value' key
 		if (!$vchecktoken) {
 			// probably the token transient has expired
 			do_action('forcefield_login_oldtoken');
 			do_action('forcefield_login_failed');
 			$vstatus = 403; // HTTP 403: Forbidden
 			return forcefield_filtered_error('login_token_expired', $verrormessage, $vstatus);
-		} elseif ($vauthtoken != $vchecktoken) {
+		} elseif ($vauthtoken != $vchecktoken['value']) {
 			// fail, token is a mismatch
 			// 0.9.1: record general token usage failure
 			$vrecordbadtokens = forcefield_get_setting('blocklist_badtoken');
-			if ($vrecordbadtokens == 'yes') {forcefield_record_ip('bad_token');}
+			if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
 			do_action('forcefield_login_mismatch');
 			do_action('forcefield_login_failed');
 			$vstatus = 401; // HTTP 401: Unauthorized
@@ -1409,7 +1580,8 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 		if (isset($vblock) && $vblock) {
 			do_action('forcefield_register_failed');
 			$vstatus = 400; // HTTP 400: Bad Request
-			return forcefield_filtered_error($verror, $verrormessage, $vstatus);
+			// 0.9.5: fix to undefined error string
+			return forcefield_filtered_error('register_no_referer', $verrormessage, $vstatus);
 		}
 	}
 
@@ -1427,7 +1599,8 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 		do_action('forcefield_register_notoken');
 		do_action('forcefield_register_failed');
 		$vstatus = 400; // HTTP 400: Bad Request
-		return forcefield_filtered_error($verror, $verrormessage, $vstatus, $errors);
+		// 0.9.5: fix to undefined error string
+		return forcefield_filtered_error('register_token_missing', $verrormessage, $vstatus, $errors);
 	} else {
 		// 0.9.1: maybe clear no token records
 		forcefield_delete_record(false, 'no_token');
@@ -1437,17 +1610,18 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 	$vauthtoken = $_POST['auth_token'];
 	$vchecktoken = forcefield_check_token('register');
 
+	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$vchecktoken) {
 		// probably the register token transient has expired
 		do_action('forcefield_register_oldtoken');
 		do_action('forcefield_register_failed');
 		$vstatus = 403; // HTTP 403: Forbidden
 		return forcefield_filtered_error('register_token_expired', $verrormessage, $vstatus, $errors);
-	} elseif ($vauthtoken != $vchecktoken) {
+	} elseif ($vauthtoken != $vchecktoken['value']) {
 		// fail, token is a mismatch
 		// 0.9.1: record general token usage failure
 		$vrecordbadtokens = forcefield_get_setting('blocklist_badtokenban');
-		if ($vrecordbadtokens == 'yes') {forcefield_record_ip('bad_token');}
+		if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
 		do_action('forcefield_register_mismatch');
 		do_action('forcefield_register_failed');
 		$vstatus = 401; // HTTP 401: Unauthorized
@@ -1539,17 +1713,18 @@ function forcefield_signup_authenticate($results) {
 	$vauthtoken = $_POST['auth_token'];
 	$vchecktoken = forcefield_check_token('signup');
 
+	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$vchecktoken) {
 		// probably the register token transient has expired
 		do_action('forcefield_signup_oldtoken');
 		do_action('forcefield_signup_failed');
 		$results['errors'] = forcefield_filtered_error('signup_token_expired', $verrormessage, false, $errors);
 		return $results;
-	} elseif ($vauthtoken != $vchecktoken) {
+	} elseif ($vauthtoken != $vchecktoken['value']) {
 		// fail, register token is a mismatch
 		// 0.9.1: record general token usage failure
 		$vrecordbadtokens = forcefield_get_setting('blocklist_badtoken');
-		if ($vrecordbadtokens == 'yes') {forcefield_record_ip('bad_token');}
+		if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
 		do_action('forcefield_signup_mismatch');
 		do_action('forcefield_signup_failed');
 		$vstatus = 401; // HTTP 401: Unauthorized
@@ -1636,16 +1811,17 @@ function forcefield_lost_password_authenticate($allow) {
 	$vauthtoken = $_POST['auth_token'];
 	$vchecktoken = forcefield_check_token('lostpass');
 
+	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$vchecktoken) {
 		// probably the lost password token transient has expired
 		do_action('forcefield_lostpass_oldtoken');
 		do_action('forcefield_lostpass_failed');
 		return forcefield_filtered_error('lostpass_token_expired', $verrormessage);
-	} elseif ($vauthtoken != $vchecktoken) {
+	} elseif ($vauthtoken != $vchecktoken['value']) {
 		// fail, lost password token is a mismatch
 		// 0.9.1: record general token usage failure
 		$vrecordbadtokens = forcefield_get_setting('blocklist_badtokenban');
-		if ($vrecordbadtokens == 'yes') {forcefield_record_ip('bad_token');}
+		if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
 		do_action('forcefield_lostpass_mismatch');
 		do_action('forcefield_lostpass_failed');
 		$vstatus = 401; // HTTP 401: Unauthorized
@@ -1717,7 +1893,7 @@ function forcefield_preprocess_comment($comment) {
 	// maybe ban the IP if missing the token form field
 	if (!isset($_POST['auth_token'])) {
 		$vrecordnotoken = forcefield_get_setting('blocklist_notoken');
-		if ($vrecordnotoken == 'yes') {forcefield_record_ip('no_token');}
+		if ($vrecordnotoken == 'yes') {forcefield_blocklist_record_ip('no_token');}
 		$vinstaban = forcefield_get_setting('comment_notokenban');
 		if ($vinstaban == 'yes') {forcefield_blocklist_record_ip('no_comment_token');}
 		do_action('forcefield_comment_notoken');
@@ -1733,16 +1909,17 @@ function forcefield_preprocess_comment($comment) {
 	$vauthtoken = $_POST['auth_token'];
 	$vchecktoken = forcefield_check_token('lostpass');
 
+	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$vchecktoken) {
 		// probably the comment token transient has expired
 		do_action('forcefield_comment_oldtoken');
 		do_action('forcefield_comment_failed');
 		return forcefield_filtered_error('comment_token_expired', $verrormessage);
-	} elseif ($vauthtoken != $vchecktoken) {
+	} elseif ($vauthtoken != $vchecktoken['value']) {
 		// fail, comment token is a mismatch
 		// 0.9.1: record general token usage failure
 		$vrecordbadtokens = forcefield_get_setting('blocklist_badtokenban');
-		if ($vrecordbadtokens == 'yes') {forcefield_record_ip('bad_token');}
+		if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
 		do_action('forcefield_comment_mismatch');
 		do_action('forcefield_comment_failed');
 		$vstatus = 401; // HTTP 401: Unauthorized
@@ -1757,6 +1934,116 @@ function forcefield_preprocess_comment($comment) {
 	}
 
 	return $comment;
+}
+
+// BuddyPress Registration Trigger
+// -------------------------------
+// 0.9.5: add token field to BuddyPress registration
+// ref: https://samelh.com/blog/2017/10/26/add-fields-buddypress-registration-form-profile/
+add_action('bp_signup_validate', 'forcefield_buddypress_registration_authenticate');
+function buddypress_registration_authenticate() {
+	$error = forcefield_buddypress_authenticate();
+	if ($error) {
+		global $bp;
+		if (!isset($bp->signup->errors)) {$bp->signup->errors = array();}
+		$bp->signup->errors['auth_token'] = $error;
+	}
+}
+
+// BuddyPress Registration Authenticate
+// ------------------------------------
+function forcefield_buddypress_authenticate() {
+
+	// make sure we are on the BuddyPress registration page
+    if (!function_exists('bp_is_current_component') || !bp_is_current_component('register')) {return;}
+
+	// filtered general error message
+	$verrormessage = forcefield_get_setting('error_message');
+	$verrormessage = apply_filters('forcefield_error_message_buddypress', $verrormessage);
+
+	// check IP whitelist
+	if (forcefield_whitelist_check('actions')) {return false;}
+	// 0.9.2: check IP blacklist
+	if (forcefield_blacklist_check('actions')) {forcefield_forbidden_exit();}
+
+	// maybe require SSL connection for registration
+	$vrequiressl = forcefield_get_setting('buddypress_requiressl');
+	if ( ($vrequiressl == 'yes') && !is_ssl()) {
+		// the instant version of the auth_redirect function
+		if (0 === strpos($_SERVER['REQUEST_URI'], 'http')) {
+			wp_redirect(set_url_scheme($_SERVER['REQUEST_URI'], 'https'));
+		} else {wp_redirect( 'https://'.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI']);}
+		exit;
+	}
+
+	// check for empty referer field
+	if ($_SERVER['HTTP_REFERER'] == '') {
+		do_action('forcefield_buddypress_noreferer');
+		do_action('forcefield_no_referer');
+
+		$vnorefban = forcefield_get_setting('blocklist_norefban');
+		if ($vnorefban == 'yes') {
+			$vtransgressions = forcefield_blocklist_record_ip('no_referer');
+			$vblocked = forcefield_blocklist_check_transgressions('no_referer', $vtransgressions);
+			if ($vblocked) {$vblock = true;}
+		}
+		$vnorefblock = forcefield_get_setting('buddypress_norefblock');
+		if ($vnorefblock == 'yes') {$vblock = true;}
+
+		if (isset($vblock) && $vblock) {
+			do_action('forcefield_buddypress_failed');
+			$vstatus = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('buddypress_no_referer', $verrormessage, $vstatus);
+		}
+	}
+
+	// check tokenizer setting
+    $vtokenize = forcefield_get_setting('buddypress_token');
+	if ($vtokenize != 'yes') {return $errors;}
+
+	// maybe ban the IP if missing the token form field
+	if (!isset($_POST['auth_token'])) {
+		$vrecordnotoken = forcefield_get_setting('blocklist_notoken');
+		if ($vrecordnotoken == 'yes') {forcefield_blocklist_record_ip('no_token');}
+		$vinstaban = forcefield_get_setting('buddypress_notokenban');
+		if ($vinstaban == 'yes') {forcefield_blocklist_record_ip('no_buddypress_token');}
+		do_action('forcefield_buddypress_notoken');
+		do_action('forcefield_buddypress_failed');
+		$vstatus = 400; // HTTP 400: Bad Request
+		return forcefield_filtered_error('buddypress_token_missing', $verrormessage, $vstatus, $errors);
+	} else {
+		// maybe clear no token records
+		forcefield_delete_record(false, 'no_token');
+		forcefield_delete_record(false, 'no_buddypress_token');
+	}
+
+	$vauthtoken = $_POST['auth_token'];
+	$vchecktoken = forcefield_check_token('buddypress');
+
+	// 0.9.5: check now returns an array so we check 'value' key
+	if (!$vchecktoken) {
+		// probably the register token transient has expired
+		do_action('forcefield_buddypress_oldtoken');
+		do_action('forcefield_buddypress_failed');
+		$vstatus = 403; // HTTP 403: Forbidden
+		return forcefield_filtered_error('buddypress_token_expired', $verrormessage, $vstatus, $errors);
+	} elseif ($vauthtoken != $vchecktoken['value']) {
+		// fail, token is a mismatch
+		$vrecordbadtokens = forcefield_get_setting('blocklist_badtokenban');
+		if ($vrecordbadtokens == 'yes') {forcefield_blocklist_record_ip('bad_token');}
+		do_action('forcefield_buddypress_mismatch');
+		do_action('forcefield_buddypress_failed');
+		$vstatus = 401; // HTTP 401: Unauthorized
+		return forcefield_filtered_error('buddypress_token_mismatch', $verrormessage, $vstatus, $errors);
+	} else {
+		// clear any bad token records
+		forcefield_blocklist_delete_record(false, 'bad_token');
+		// remove used register token
+		forcefield_delete_token('buddypress');
+		do_action('forcefield_buddypress_success');
+	}
+
+    return $errors;
 }
 
 
@@ -1866,13 +2153,15 @@ function forcefield_blocklist_check() {
 
 			// check the block reason is still enforced
 			$vreason = $vrecord['label']; $venforced = true;
+			// 0.9.5: added buddypress registration token to conditions
 			if ( ( ($vreason == 'admin_bad') && (forcefield_get_setting('admin_block') != 'yes') )
 			  || ( ($vreason == 'xmlrpc_login') && (forcefield_get_setting('xmlrpc_authban') != 'yes') )
 			  || ( ($vreason == 'no_login_token') && (forcefield_get_setting('login_token') != 'yes') )
 			  || ( ($vreason == 'no_register_token') && (forcefield_get_setting('register_token') != 'yes') )
 			  || ( ($vreason == 'no_signup_token') && (forcefield_get_setting('signup_token') != 'yes') )
 			  || ( ($vreason == 'no_lostpass_token') && (forcefield_get_setting('lostpass_token') != 'yes') )
-			  || ( ($vreason == 'no_comment_token') && (forcefield_get_setting('comment_token') != 'yes') ) ) {
+			  || ( ($vreason == 'no_comment_token') && (forcefield_get_setting('comment_token') != 'yes') )
+			  || ( ($vreason == 'no_buddypress_token') && (forcefield_get_setting('buddypress_token') != 'yes') ) ) {
 				$venforced = false;
 			}
 			// note exception: for "no_referer" just check transgression limit
@@ -1896,41 +2185,6 @@ function forcefield_blocklist_check() {
 	}
 	return;
 
-	// 0.9.1: [DEPRECATED] single array IP blocklist check
-	global $vffblocklist;
-	$vffblocklist = get_option('forcefield_blocklist');
-	if (is_array($vffblocklist)) {
-
-		// note: defaults to not expire any IP blocks at all
-		// can be filtered to an expiry time difference in seconds (eg. 1 day = 24*60*60)
-		$vexpireblock = absint(forcefield_get_setting('blocklist_expiry'));
-		$vexpireblock = 120; // TEMP
-
-		if ($vexpireblock && ($vexpireblock > 0) ) {
-			if (count($vffblocklist) > 0) {
-				$vfoundexpired = true;
-				foreach ($vffblocklist as $vblockedip) {
-					$vinfo = $vffblocklist[$vforcefieldip];
-					$vdata = explode(':', $vinfo);
-					$vdiff = time() - $vdata[1];
-					if ($vdiff > $vexpireblock) {
-						unset($vffblocklist[$vforcefieldip]);
-						$vfoundexpired = true;
-					}
-				}
-				if ($vfoundexpired) {update_option('forcefield_blocklist', $vffblocklist);}
-			}
-		}
-
-		if (array_key_exists($vforcefieldip, $vffblocklist)) {
-			$vblockrequest = true;
-			if ($vblockrequest) {
-				header("HTTP/1.1 403 Forbidden");
-				header('Status: 403 Forbidden');
-				header('Connection: Close'); exit;
-			}
-		}
-	}
 }
 
 // Create IP Blocklist Table on Activation
@@ -2019,7 +2273,11 @@ function forcefield_blocklist_get_records($vcolumns=array(), $vip=false, $vreaso
 		if ($vwhere == '') {$vwhere = $wpdb->prepare("WHERE `ip` = %s", $vip);}
 		else {$vwhere .= $wpdb->prepare(" AND `ip` = %s", $vip);}
 	}
-	if ($vreason) {$vwhere .= $wpdb->prepare(" AND `label` = %s", $vreason);}
+	if ($vreason) {
+		// 0.9.5: fix to handle reason without specific IP address
+		if ($vwhere == '') {$vwhere .= $wpdb->prepare(" WHERE `label` = %s", $vreason);}
+		else {$vwhere .= $wpdb->prepare(" AND `label` = %s", $vreason);}
+	}
 
 	$vquery = "SELECT $vcolumnquery FROM ".$vforcefield['table']." ".$vwhere;
 	$vresult = $wpdb->get_results($vquery, ARRAY_A);
@@ -2031,7 +2289,9 @@ function forcefield_blocklist_get_records($vcolumns=array(), $vip=false, $vreaso
 // -------------------------------
 // 0.9.1: use blocklist table
 function forcefield_blocklist_record_ip($vreason, $vip=false) {
-	if (!isset($vip)) {global $vforcefield; $vip = $vforcefield['ip'];}
+	// 0.9.6: fix to incorrect global declaration
+	global $vforcefield;
+	if (!isset($vip)) {$vip = $vforcefield['ip'];}
 	global $wpdb; $vtime = time();
 
 	// check for existing trangression of this type
@@ -2041,13 +2301,14 @@ function forcefield_blocklist_record_ip($vreason, $vip=false) {
 		foreach ($vrecords as $vrecord) {
 			if ($vrecord['label'] == $vreason) {
 				// increment transgression count
+				// 0.9.6: fix to (multiple!) incorrect variable names
 				$vtransgressions = $vrecord['transgressions'];
-				$vrecords['transgressions'] = $vtransgressions++;
-				$vrecords['last_access_at'] = $vtime;
-				$vrecords['deleted_at'] = 0;
+				$vrecord['transgressions'] = $vtransgressions++;
+				$vrecord['last_access_at'] = $vtime;
+				$vrecord['deleted_at'] = 0;
 				$vwhere = array('id' => $vrecord['id']);
-				$vupdate = $wpdb->update($vforcefield['table'], $vdata, $vwhere);
-				return $vdata;
+				$vupdate = $wpdb->update($vforcefield['table'], $vrecord, $vwhere);
+				return $vupdate;
 			}
 		}
 	}
@@ -2288,9 +2549,10 @@ function forcefield_blocklist_unblock_check() {
 	$vauthtoken = $_POST['auth_token'];
 	$vchecktoken = forcefield_check_token('unblock');
 
+	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$vchecktoken) {
 		$vmessage = __('Time Limit Expired. Refresh the Page and Try Again.','forcefield');
-	} elseif ($vauthtoken != $vchecktoken) {
+	} elseif ($vauthtoken != $vchecktoken['value']) {
 		// fail, token is a mismatch
 		$vmessage = __('Invalid Request. Unblock Failed.','forcefield');
 	} else {
@@ -2336,135 +2598,6 @@ function forcefield_blocklist_schedule_cleanup() {
 		$vfrequency = forcefield_get_setting('blocklist_cleanups');
 		wp_schedule_event(time(), $vfrequency, 'forcefield_blocklist_table_cleanup');
 	}
-}
-
-
-// ============
-// AUTO UPDATES
-// ============
-
-// maybe Auto Update this Plugin
-// -----------------------------
-// 0.9.4: added this option for ForceField auto-updates
-add_filter('auto_update_plugins', 'forcefield_self_auto_update', 15, 2);
-function forcefield_self_auto_update($update, $item) {
-	if ($item->slug == 'forcefield') {
-		if (forcefield_get_setting('autoupdate_self') == 'yes') {return true;}
-	}
-	return $update;
-}
-
-// maybe Auto Update Inactive Plugins
-// ----------------------------------
-// 0.9.4: to auto-update inactive plugins
-add_filter('auto_update_plugin', 'forcefield_auto_update_plugins', 5, 2);
-function forcefield_auto_update_plugins($update, $item) {
-
-	// maybe update inactive plugin(s)
-	$vpluginslug = $item->slug;
-	$vupdateinactive = forcefield_get_setting('autoupdate_inactive_plugins');
-	if ( ($vupdateinactive) && ($vupdateinactive == 'yes') ) {
-		if (!is_multisite()) {
-			// automatically update this inactive plugin
-			if (!is_plugin_active($vpluginslug)) {return true;}
-		} else {
-			// check all active plugins on blogs for multisite installs
-			$vpluginslugs = forcefield_get_multisite_active_plugins();
-			if (!in_array($vpluginslug, $vpluginslugs)) {return true;}
-		}
-	}
-	return $update;
-}
-
-// get Multisite Active Plugins
-// ----------------------------
-// 0.9.4: for multisite support
-function forcefield_get_multisite_active_plugins() {
-
-	// maybe return existing active plugins list
-	global $vforcefield;
-	if (isset($vforcefield['multisite_plugins'])) {return $vforcefield['multisite_plugins'];}
-
-	// get network activated plugins
-	$vactiveplugins = (array)get_site_option('active_sitewide_plugins', array());
-
-	// loop multisite sites to get active plugins for each
-	global $wpdb;
-	$vsites = forcefield_get_multisite_sites();
-	foreach ($vsites as $vsite) {
-		$vblogid = absint($vsite->blog_id);
-		$vdatabaseprefix = $wpdb->prefix;
-		if ($vblogid != '1') {$vdatabaseprefix .= $vblogid.'_';}
-		$vquery = "SELECT option_value FROM ".$vdatabaseprefix."options WHERE option_name = 'active_plugins'";
-		$vactive = $wpdb->get_var($vquery);
-		$vactive = maybe_unserialize($active);
-		if (is_array($active)) {$vactiveplugins = array_merge($vactiveplugins, $vactive);}
-	}
-
-	$vforcefield['multisite_plugins'] = $vactiveplugins;
-	return $vactiveplugins;
-}
-
-// maybe Auto Update Themes
-// ------------------------
-add_filter('auto_update_theme', 'smart_updates_auto_update_themes', 5, 2);
-function smart_updates_auto_update_themes($update, $item) {
-
-	// maybe autoupdate inactive themes
-	$vthemeslug = $item->slug;
-	$vupdateinactive = forcefield_get_setting('autoupdate_inactive_themes');
-	if ( ($vupdateinactive) && ($vupdateinactive == 'yes') ) {
-		if (!is_multisite()) {
-			// get (unfiltered) stylesheet and template values
-			global $wpdb;
-			$vstylesheet = $wpdb->get_var("SELECT option_value FROM ".$wpdb->prefix."options WHERE option_name = 'stylesheet'");
-			$vtemplate = $wpdb->get_var("SELECT option_value FROM ".$wpdb->prefix."options WHERE option_name = 'template'");
-			// set to auto update if the theme is not active
-			if ( ($vthemeslug != $vstylesheet) && ($vthemeslug != $vtemplate) ) {return true;}
-		} else {
-			// check all active themes on blogs for multisite installs
-			$vactivethemes = forcefield_get_multisite_active_themes();
-			if (!in_array($vthemeslug, $vactivethemes)) {return true;}
-		}
-	}
-	return $update;
-}
-
-// get Multisite Active Themes
-// ---------------------------
-// 0.9.4: for multisite support
-function forcefield_get_multisite_active_themes() {
-
-	// maybe return existing active themes list
-	global $vforcefield;
-	if (isset($vforcefield['multisite_themes'])) {return $vforcefield['multisite_themes'];}
-
-	// loop multisite sites to get active themes for each
-	$vsites = forcefield_get_multisite_sites();
-	global $wpdb; $vactivethemes = array();
-	foreach ($vsites as $vsite) {
-		$vblogid = absint($vsite->blog_id);
-		$vdatabaseprefix = $wpdb->prefix;
-		if ($vblogid != '1') {$vdatabaseprefix .= $vblogid.'_';}
-		$vstylesheet = $wpdb->get_var("SELECT option_value FROM ".$vdatabaseprefix."options WHERE option_name = 'stylesheet'");
-		if (!in_array($vstylesheet, $vactivethemes)) {$vactivethemes[] = $stylesheet;}
-		$vtemplate = $wpdb->get_var("SELECT option_value FROM ".$vdatabaseprefix."options WHERE option_name = 'template'");
-		if (!in_array($vtemplate, $vactivethemes)) {$vactivethemes[] = $template;}
-	}
-
-	$vforcefield['multisite_themes'] = $vactivethemes;
-	return $vactivethemes;
-}
-
-// get all Multisite Sites
-// -----------------------
-// 0.9.4: helper to get multisite sites once only
-function forcefield_get_multisite_sites() {
-	global $vforcefield;
-	if (!isset($vforcefield['multisite_sites'])) {
-		$vforcefield['multisite_sites'] = get_sites(array('deleted' => false));
-	}
-	return $vforcefield['multisite_sites'];
 }
 
 
