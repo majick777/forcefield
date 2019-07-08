@@ -34,6 +34,11 @@ Adds several ways to restrict access to XML RPC and REST API features. While the
 
 ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (and so you don't lock yourself out of your site!)
 
+**Vulnerability Check**
+
+Checks your installed core, plugins and themes for known vulnerabilities and sends email alerts on new vulnerabilities found.
+
+
 [ForceField Home](http://wordquest.org/plugins/forcefield/)
 [Support Forum](http://wordquest.org/support/forcefield/)
 
@@ -52,6 +57,14 @@ ForceField also records access to user actions missing referer headers, missing 
 
 
 == Changelog ==
+
+= 0.9.8 =
+* updated WordQuest Helper library to 1.7.4
+* added vulnerability checker for core, plugins and themes!
+* use do_actions to allow adding extra admin interfaces
+* use apply_filters for filtering whitelist / blacklist
+* honour FORCEFIELD_REQUIRE_SSL constant override
+* fix to reset input type to button so enter submits
 
 = 0.9.7 =
 * fix to transgression record check

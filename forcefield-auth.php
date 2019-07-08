@@ -173,14 +173,14 @@ function forcefield_create_token($context) {
 
 	global $forcefield;
 
-	// $debug = true;
 	$debug = false;
+	// $debug = true;
 
 	// --- check token setting for context ----
 	$tokenize = forcefield_get_setting($context.'_token');
-	if ($debug) {echo "Tokenize? ".$tokenize.PHP_EOL;}
+	if ($debug) {echo "<!-- Tokenize? ".$tokenize." -->";}
 	if ($tokenize != 'yes') {
-		if ($debug) {echo "Tokens off for '".$context."'";}
+		if ($debug) {echo "<!-- Tokens off for '".$context."' -->";}
 		return false;
 	}
 
@@ -188,7 +188,7 @@ function forcefield_create_token($context) {
 	// 0.9.5: also check and return token expiry if found
 	$token = forcefield_check_token($context, true);
 	if (isset($token['value'])) {
-		if ($debug) {echo "Existing Token: ".print_r($token,true).PHP_EOL;}
+		if ($debug) {echo "<!-- Existing Token: ".print_r($token,true)." -->";}
 		return $token;
 	}
 
@@ -199,10 +199,10 @@ function forcefield_create_token($context) {
 	elseif ($iptype == 'ip4') {$ip = str_replace('.', '-', $forcefield['ip']);}
 	elseif ($iptype == 'ip6') {$ip = str_replace(':', '--', $forcefield['ip']);}
 	else {
-		if ($debug) {echo "No token generated for IP type '".$iptype."'";}
+		if ($debug) {echo "<!-- No token generated for IP type '".$iptype."' -->";}
 		return false;
 	}
-	if ($debug) {echo "IP: ".$ip.PHP_EOL;}
+	if ($debug) {echo "<!-- IP: ".$ip." -->";}
 
 	// --- get and set token expiry length ---
 	// 0.9.4: added context-specific expiry time filtering
@@ -305,7 +305,11 @@ function forcefield_xmlrpc_authentication($user, $username, $password) {
 
 	// --- check for SSL connection requirement ---
 	$requiressl = forcefield_get_setting('xmlrpc_requiressl');
-	if ( ($requiressl == 'yes') && !is_user_logged_in() && !is_ssl() ) {
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
+	if ( ($requiressl == 'yes') && !is_ssl() ) {
 		add_filter('xmlrpc_login_error', 'forcefield_xmlrpc_require_ssl_message');
 		// note: we need to return an error here so that the xmlrpc_login_error filter is called
 		$errormessage = __('XML RPC requires SSL Connection.','forcefield');
@@ -403,7 +407,11 @@ function forcefield_login_validate($user, $username, $password) {
 
 	// --- maybe require SSL connection to login ---
 	$requiressl = forcefield_get_setting('login_requiressl');
-	if ( ($requiressl == 'yes') && !is_user_logged_in() && !is_ssl()) {
+	// 0.9.8: allow for constant override to prevent self-lockout
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
+	if ( ($requiressl == 'yes') && !is_ssl()) {	
 		add_filter('secure_auth_redirect', '__return_true');
 		auth_redirect(); exit;
 	}
@@ -550,6 +558,10 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 
 	// --- maybe require SSL connection for registration ---
 	$requiressl = forcefield_get_setting('register_requiressl');
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
 	if ( ($requiressl == 'yes') && !is_ssl()) {
 		// note: compressed version of auth_redirect function
 		if (0 === strpos($_SERVER['REQUEST_URI'], 'http')) {
@@ -678,6 +690,10 @@ function forcefield_signup_authenticate($results) {
 
 	// --- maybe require SSL connection for blog signup ---
 	$requiressl = forcefield_get_setting('signup_requiressl');
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
 	if ( ($requiressl == 'yes') && !is_ssl()) {
 		if (0 === strpos($_SERVER['REQUEST_URI'], 'http')) {
 			wp_redirect(set_url_scheme($_SERVER['REQUEST_URI'], 'https'));
@@ -809,6 +825,10 @@ function forcefield_lost_password_authenticate($allow) {
 
 	// --- maybe require SSL connection for lost password ---
 	$requiressl = forcefield_get_setting('lostpass_requiressl');
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
 	if ( ($requiressl == 'yes') && !is_ssl()) {
 		if (0 === strpos($_SERVER['REQUEST_URI'], 'http')) {
 			wp_redirect(set_url_scheme($_SERVER['REQUEST_URI'], 'https'));
@@ -931,6 +951,10 @@ function forcefield_preprocess_comment($comment) {
 
 	// --- maybe require SSL connection for commenting ---
 	$requiressl = forcefield_get_setting('comment_requiressl');
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
 	if ( ($requiressl == 'yes') && !is_ssl()) {
 		if (0 === strpos($_SERVER['REQUEST_URI'], 'http')) {
 			wp_redirect(set_url_scheme($_SERVER['REQUEST_URI'], 'https'));
