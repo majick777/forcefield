@@ -1,20 +1,20 @@
 <?php
 
-// ===========================
-// === Plugin Loader Class ===
-// ===========================
+// =====================================
+// === WordQuest Plugin Loader Class ===
+// =====================================
 //
 // --------------
-// Version: 1.0.5
+// Version: 1.0.6
 // --------------
 // * changelog at end of file! *
 
 
 // Loader Usage:
 // =============
-// 1. replace all occurrences of automedic in this file with the plugin namespace
-// 2. define plugin options, default settings, and setup arguments in the plugin file
-// 3. after definitions, require this file in the main plugin file (example below)
+// 1. replace all occurrences of PREFIX_ in this file with the plugin namespace eg. myplugin_
+// 2. define plugin options, default settings, and setup arguments your main plugin file
+// 3. require this file in the main plugin file and instantiate the loader class (see example below)
 
 
 // ---------------------------
@@ -80,8 +80,8 @@
 // Start Plugin Loader Instance
 // ----------------------------
 // require(dirname(__FILE__).'/loader.php');				// requires this file!
-// $instance = new {NAMESPACE}_loader($args);				// instantiates loader class
-// (eg. replace {NAMESPACE} with my_plugin_namespace etc.)
+// $instance = new PREFIX_loader($args);				// instantiates loader class
+// (eg. replace 'PREFIX_' with 'my_plugin_' etc.)
 
 
 // ===========================
@@ -102,6 +102,8 @@ class forcefield_loader {
 	function __construct($args) {
 
 		// --- set plugin options ---
+		// 1.0.6: added options filter
+		$args['options'] = apply_filters($args['namespace'].'_options', $args['options']);
 		$this->options = $args['options']; unset($args['options']);
 
 		// --- set plugin args and namespace ---
@@ -350,7 +352,8 @@ class forcefield_loader {
 				if (isset($values['options'])) {$valid = $values['options'];}
 
 				// --- get posted value ---
-				$postkey = $args['settings'].'_'.$key;
+				// 1.0.6: set null value for unchecked checkbox fix
+				$posted = null; $postkey = $args['settings'].'_'.$key;
 				if (isset($_POST[$postkey])) {$posted = $_POST[$postkey];}
 
 				// --- sanitize value according to type ---
@@ -369,19 +372,21 @@ class forcefield_loader {
 				} elseif ($type == 'checkbox') {
 
 					// --- checkbox ---
+					// 1.0.6: fix to new unchecked checkbox value
 					$valid = array('', 'yes', '1', 'checked');
 					if (in_array($posted, $valid)) {$settings[$key] = $posted;}
+					elseif (is_null($posted)) {$settings[$key] = '';}
 
 				} elseif ($type == 'numeric') {
 
 					// --- number / numeric text ---
 					$posted = absint($posted);
-					if (is_numeric($posted)) {$settings[$key] = $posted;}
+					$settings[$key] = $posted;
 
 				} elseif ($type == 'alphanumeric') {
 
 					// --- alphanumeric text only ---
-					// TODO: maybe improve on this check?
+					// TODO: maybe improve on this check ?
 					$checkposted = preg_match('/^[a-zA-Z0-9_]+$/', $posted);
 					if ($checkposted) {$settings[$key] = $posted;}
 
@@ -401,8 +406,21 @@ class forcefield_loader {
 
 					// --- email address ---
 					// 1.0.3: added email option type checking
-					$posted = sanitize_email($posted);
+					$posted = sanitize_email(trim($posted));
 					if ($posted) {$settings[$key] = $posted;} else {$settings[$key] = '';}
+
+				} elseif ($type == 'emails') {
+
+					// --- email address list ---
+					// 1.0.6: added comma separated email list option type
+					if (strstr($posted, ',')) {$emails = explode($posted, ',');}
+					else {$emails = array(trim($posted));}
+					foreach ($emails as $i => $email) {
+						$email = sanitize_email(trim($email));
+						if (!empty($email) && $email) {$emails[$i] = $email;} else {unset($emails[$i]);}
+					}
+					if (count($emails) > 0) {$settings[$key] = implode($emails, ',');}
+					else {$settings[$key] = '';}
 
 				} elseif ($type == 'usernames') {
 
@@ -410,7 +428,7 @@ class forcefield_loader {
 					// 1.0.3: added username option type checking
 					$usernames = array();
 					if (strstr($posted, ',')) {$usernames = explode(',', $posted);}
-					else {$usernames[0] = trim($posted);}
+					else {$usernames = array(trim($posted));}
 					foreach ($usernames as $i => $username) {
 						$username = trim($username);
 						$user = get_user_by('login', $username);
@@ -419,12 +437,14 @@ class forcefield_loader {
 					if (count($usernames) > 0) {$settings[$key] = implode(',', $usernames);}
 					else {$settings[$key] = '';}
 
-				} elseif ($vtype == 'url') {
+				} elseif ($type == 'url') {
+					// 1.0.6: fix to type variable typo (vtype)
 
 					// --- URL address ---
 					// 1.0.4: added validated URL option
 					// TODO: maybe replace with a regex URL filter ?
-					$url = filter_var($vposted, FILTER_SANITIZE_STRING);
+					// 1.0.6: fix to posted variable type (vposted)
+					$url = filter_var($posted, FILTER_SANITIZE_STRING);
 					if ( (substr($url, 0, 4) != 'http') || !filter_var($url, FILTER_VALIDATE_URL)) {$posted = '';}
 					$settings[$key] = $posted;
 
@@ -1186,6 +1206,12 @@ function forcefield_load_prefixed_functions() {
 // CHANGELOG
 // =========
 
+// == 1.0.6 ==
+// - added global options filter
+// - added 'emails' option type for multiple email saving
+// - fix for new unchecked checkbox value
+// - fix for typos in URL option type saving
+
 // == 1.0.5 ==
 // - fix for undefined account and support variables
 
@@ -1216,5 +1242,4 @@ function forcefield_load_prefixed_functions() {
 // - Working Release version
 
 // == 0.9.0 ==
-// - Test Version
-
+// - Development Version

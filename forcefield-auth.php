@@ -74,11 +74,12 @@ function forcefield_check_token($context, $getexpiry=false) {
 // -------------------------
 // Add Token Fields to Forms
 // -------------------------
+// 0.9.7: fix to incorrect function suffixes for signup and lostpass
 add_action('login_form', 'forcefield_login_field');
 add_action('register_form', 'forcefield_register_field');
-add_action('signup_extra_fields', 'forcefield_signup_token');
-add_action('signup_blogform', 'forcefield_signup_token');
-add_action('lostpassword_form', 'forcefield_lostpass_token');
+add_action('signup_extra_fields', 'forcefield_signup_field');
+add_action('signup_blogform', 'forcefield_signup_field');
+add_action('lostpassword_form', 'forcefield_lostpass_field');
 add_action('comment_form', 'forcefield_comment_field');
 function forcefield_login_field() {forcefield_add_field('login');}
 function forcefield_register_field() {forcefield_add_field('register');}
@@ -121,6 +122,7 @@ function forcefield_add_field($context) {
 add_action('wp_ajax_nopriv_forcefield_login', 'forcefield_login_token');
 add_action('wp_ajax_nopriv_forcefield_register', 'forcefield_register_token');
 add_action('wp_ajax_nopriv_forcefield_signup', 'forcefield_signup_token');
+add_action('wp_ajax_forcefield_signup', 'forcefield_signup_token');
 add_action('wp_ajax_nopriv_forcefield_lostpass', 'forcefield_lostpass_token');
 add_action('wp_ajax_nopriv_forcefield_comment', 'forcefield_comment_token');
 add_action('wp_ajax_forcefield_comment', 'forcefield_comment_token');
@@ -140,7 +142,7 @@ function forcefield_buddypress_token() {forcefield_output_token('buddypress');}
 function forcefield_output_token($context) {
 
 	$token = forcefield_create_token($context);
-	// echo $context.PHP_EOL;
+	// echo "Context: ".$context.PHP_EOL;
 	// var_dump($token); echo PHP_EOL;
 
 	if ($token) {
@@ -158,7 +160,6 @@ function forcefield_output_token($context) {
 		// 0.9.4: add a timer for token auto-refresh
 		if (isset($token['expiry'])) {
 			$cycle = $token['expiry'] * 1000;
-			// TODO: use interval cycler rather than a single timeout ?
 			echo "<script>setTimeout(function() {window.location.reload();}, ".$cycle.");</script>";
 		}
 	} else {echo __('Error. No Token was generated.', 'forcefield');}
@@ -393,7 +394,7 @@ function forcefield_login_validate($user, $username, $password) {
 			}
 		}
 
-		// TODO: check other significant roles (editor ?)
+		// TODO: maybe add check for other significant roles (eg. editor, author) ?
 
 	}
 
@@ -408,7 +409,8 @@ function forcefield_login_validate($user, $username, $password) {
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_login_noreferer');
 		do_action('forcefield_no_referer');
@@ -440,7 +442,7 @@ function forcefield_login_validate($user, $username, $password) {
 		if ($tokenize != 'yes') {return $user;}
 
 		// --- maybe record the IP if missing the token form field ---
-		if (!isset($_POST['auth_token'])) {
+		if (!isset($_POST['auth_token_login'])) {
 
 			// --- record no token ---
 			// 0.9.1: separate instaban and no token recording
@@ -460,12 +462,12 @@ function forcefield_login_validate($user, $username, $password) {
 
 			// --- token provided so clear old records ---
 			// 0.9.1: maybe clear no token records
-			forcefield_delete_record(false, 'no_token');
-			forcefield_delete_record(false, 'no_login_token');
+			forcefield_blocklist_delete_record(false, 'no_token');
+			forcefield_blocklist_delete_record(false, 'no_login_token');
 
 		}
 
-		$authtoken = $_POST['auth_token'];
+		$authtoken = $_POST['auth_token_login'];
 		$checktoken = forcefield_check_token('login');
 
 		// --- check token ---
@@ -538,6 +540,14 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 	if (forcefield_whitelist_check('actions')) {return $errors;}
 	if (forcefield_blacklist_check('actions')) {forcefield_forbidden_exit();}
 
+	// --- check if user is logged in ---
+	// 0.9.7: added this error message to logout first
+	if (is_user_logged_in()) {
+		$errormessage = __('Please logout to register a new account.','forcefield');
+		$status = 400; // HTTP 400: Bad Request
+		return forcefield_filtered_error('register_logged_in', $errormessage, $status, $errors);
+	}
+
 	// --- maybe require SSL connection for registration ---
 	$requiressl = forcefield_get_setting('register_requiressl');
 	if ( ($requiressl == 'yes') && !is_ssl()) {
@@ -549,7 +559,8 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_register_noreferer');
 		do_action('forcefield_no_referer');
@@ -580,7 +591,7 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 	if ($tokenize != 'yes') {return $errors;}
 
 	// --- check the token field ---
-	if (!isset($_POST['auth_token'])) {
+	if (!isset($_POST['auth_token_register'])) {
 
 		// --- record no token ---
 		// 0.9.1: separate token and register token recording
@@ -600,11 +611,11 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 	} else {
 		// --- token present, clear old records ---
 		// 0.9.1: maybe clear no token records
-		forcefield_delete_record(false, 'no_token');
-		forcefield_delete_record(false, 'no_register_token');
+		forcefield_blocklist_delete_record(false, 'no_token');
+		forcefield_blocklist_delete_record(false, 'no_register_token');
 	}
 
-	$authtoken = $_POST['auth_token'];
+	$authtoken = $_POST['auth_token_register'];
 	$checktoken = forcefield_check_token('register');
 
 	// --- check token ---
@@ -675,7 +686,8 @@ function forcefield_signup_authenticate($results) {
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_signup_noreferer');
 		do_action('forcefield_no_referer');
@@ -706,7 +718,7 @@ function forcefield_signup_authenticate($results) {
 	if ($tokenize != 'yes') {return $results;}
 
 	// --- maybe ban the IP if missing the token form field ---
-	if (!isset($_POST['auth_token'])) {
+	if (!isset($_POST['auth_token_signup'])) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting('blocklist_notoken');
@@ -726,12 +738,12 @@ function forcefield_signup_authenticate($results) {
 
 		// --- delete old records ---
 		// 0.9.1: maybe clear no token records
-		forcefield_delete_record(false, 'no_token');
-		forcefield_delete_record(false, 'no_signup_token');
+		forcefield_blocklist_delete_record(false, 'no_token');
+		forcefield_blocklist_delete_record(false, 'no_signup_token');
 
 	}
 
-	$authtoken = $_POST['auth_token'];
+	$authtoken = $_POST['auth_token_signup'];
 	$checktoken = forcefield_check_token('signup');
 
 	// --- check token ---
@@ -787,6 +799,14 @@ function forcefield_lost_password_authenticate($allow) {
 	if (forcefield_whitelist_check('actions')) {return $allow;}
 	if (forcefield_blacklist_check('actions')) {forcefield_forbidden_exit();}
 
+	// --- check if user is logged in ---
+	// 0.9.7: added this error message for already logged in
+	if (is_user_logged_in()) {
+		$errormessage = __('You are already logged in. You can change your password from your user profile screen.','forcefield');
+		$status = 400; // HTTP 400: Bad Request
+		return forcefield_filtered_error('lostpass_logged_in', $errormessage, $status);
+	}
+
 	// --- maybe require SSL connection for lost password ---
 	$requiressl = forcefield_get_setting('lostpass_requiressl');
 	if ( ($requiressl == 'yes') && !is_ssl()) {
@@ -797,7 +817,8 @@ function forcefield_lost_password_authenticate($allow) {
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_lostpass_noreferer');
 		do_action('forcefield_no_referer');
@@ -827,7 +848,7 @@ function forcefield_lost_password_authenticate($allow) {
 	if ($tokenize != 'yes') {return $allow;}
 
 	// --- maybe ban the IP if missing the token form field ---
-	if (!isset($_POST['auth_token'])) {
+	if (!isset($_POST['auth_token_lostpass'])) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting('blocklist_notoken');
@@ -845,12 +866,12 @@ function forcefield_lost_password_authenticate($allow) {
 	} else {
 		// --- remove old records ---
 		// 0.9.1: maybe clear no token records
-		forcefield_delete_record(false, 'no_token');
-		forcefield_delete_record(false, 'no_lostpass_token');
+		forcefield_blocklist_delete_record(false, 'no_token');
+		forcefield_blocklist_delete_record(false, 'no_lostpass_token');
 
 	}
 
-	$authtoken = $_POST['auth_token'];
+	$authtoken = $_POST['auth_token_lostpass'];
 	$checktoken = forcefield_check_token('lostpass');
 
 	// --- check token ---
@@ -878,8 +899,9 @@ function forcefield_lost_password_authenticate($allow) {
 
 		// --- success, allow the user to send reset email ---
 		// 0.9.1: clear any bad token records
-		blocklist_delete_record(false, 'bad_token');
-		// remove used lost password token
+		forcefield_blocklist_delete_record(false, 'bad_token');
+
+		// --- remove used lost password token ---
 		forcefield_delete_token('lostpass');
 		do_action('forcefield_lostpass_success');
 
@@ -917,7 +939,8 @@ function forcefield_preprocess_comment($comment) {
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_comment_noreferer');
 		do_action('forcefield_no_referer');
@@ -947,7 +970,7 @@ function forcefield_preprocess_comment($comment) {
 	if ($tokenize != 'yes') {return $comment;}
 
 	// --- maybe ban the IP if missing the token form field ---
-	if (!isset($_POST['auth_token'])) {
+	if (!isset($_POST['auth_token_comment'])) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting('blocklist_notoken');
@@ -966,13 +989,13 @@ function forcefield_preprocess_comment($comment) {
 
 		// --- delete old no token records ---
 		// 0.9.1: maybe clear no token records
-		forcefield_delete_record(false, 'no_token');
-		forcefield_delete_record(false, 'no_comment_token');
+		forcefield_blocklist_delete_record(false, 'no_token');
+		forcefield_blocklist_delete_record(false, 'no_comment_token');
 	}
 
 	// --- check token ---
-	$authtoken = $_POST['auth_token'];
-	$checktoken = forcefield_check_token('lostpass');
+	$authtoken = $_POST['auth_token_comment'];
+	$checktoken = forcefield_check_token('comment');
 	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$checktoken) {
 
@@ -1049,7 +1072,8 @@ function forcefield_buddypress_authenticate() {
 	}
 
 	// --- check for empty referer field ---
-	if ($_SERVER['HTTP_REFERER'] == '') {
+	// 0.9.7: added isset check as may not be set if empty
+	if (!isset($_SERVER['HTTP_REFERER']) || ($_SERVER['HTTP_REFERER'] == '')) {
 
 		do_action('forcefield_buddypress_noreferer');
 		do_action('forcefield_no_referer');
@@ -1078,7 +1102,7 @@ function forcefield_buddypress_authenticate() {
 	if ($tokenize != 'yes') {return $errors;}
 
 	// --- maybe ban the IP if missing the token form field ---
-	if (!isset($_POST['auth_token'])) {
+	if (!isset($_POST['auth_token_buddypress'])) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting('blocklist_notoken');
@@ -1096,13 +1120,13 @@ function forcefield_buddypress_authenticate() {
 	} else {
 
 		// --- maybe clear no token records ---
-		forcefield_delete_record(false, 'no_token');
-		forcefield_delete_record(false, 'no_buddypress_token');
+		forcefield_blocklist_delete_record(false, 'no_token');
+		forcefield_blocklist_delete_record(false, 'no_buddypress_token');
 
 	}
 
 	// --- check token ---
-	$authtoken = $_POST['auth_token'];
+	$authtoken = $_POST['auth_token_buddypress'];
 	$checktoken = forcefield_check_token('buddypress');
 	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$checktoken) {

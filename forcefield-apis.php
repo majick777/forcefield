@@ -228,16 +228,6 @@ function forcefield_restapi_slowdown($arg) {
 	return $arg;
 }
 
-// ------------------------
-// maybe Disable REST JSONP
-// ------------------------
-add_filter('rest_jsonp_enabled', 'forcefield_jsonp_disable');
-function forcefield_jsonp_disable($enabled) {
-	$nojsonp = forcefield_get_setting('restapi_nojsonp');
-	if ($nojsonp == 'yes') {return false;}
-	return $enabled;
-}
-
 // --------------------------
 // maybe Remove REST API Info
 // --------------------------
@@ -251,16 +241,28 @@ function forcefield_remove_restapi_info() {
 	}
 }
 
+// ------------------------
+// maybe Disable REST JSONP
+// ------------------------
+add_filter('rest_jsonp_enabled', 'forcefield_jsonp_disable');
+function forcefield_jsonp_disable($enabled) {
+	$nojsonp = forcefield_get_setting('restapi_nojsonp');
+	if ($nojsonp == 'yes') {return false;}
+	return $enabled;
+}
+
 // ----------------------------
 // maybe Change REST API Prefix
 // ----------------------------
+// [Deprecated] for example reference only
+// 0.9.7: removed as this filter is better hard-coded in mu-plugins
 // note: default is "wp-json"
-add_filter('rest_url_prefix', 'forcefield_restapi_prefix', 100);
-function forcefield_restapi_prefix($prefix) {
-	$customprefix = trim(forcefield_get_setting('restapi_prefix'));
-	if ($customprefix != '') {$prefix = $customprefix;}
-	return $prefix;
-}
+// add_filter('rest_url_prefix', 'forcefield_restapi_prefix', 100);
+// function forcefield_restapi_prefix($prefix) {
+//	$customprefix = trim(forcefield_get_setting('restapi_prefix'));
+//	if ($customprefix != '') {$prefix = $customprefix;}
+//	return $prefix;
+// }
 
 // ---------------------------------------
 // maybe Disable User Enumeration Endpoint
@@ -287,19 +289,26 @@ function forcefield_restapi_anonymous_comments($allow) {
 // -----------------------------------
 // maybe Remove All REST API Endpoints
 // -----------------------------------
+// [Unused] for example reference only
 // add_action( 'plugins_loaded', 'forcefield_endpoints_remove', 0);
-function forcefield_endpoints_remove() {
-	remove_filter('rest_api_init', 'create_initial_rest_routes');
-}
+// function forcefield_endpoints_remove() {
+//	remove_filter('rest_api_init', 'create_initial_rest_routes');
+// }
 
 // -----------------
 // REST Nonce Bypass
 // -----------------
+// [Deprecated] for example reference only
 // 0.9.2: [DEV USE ONLY!] REST API Nonce Check Bypass
-add_filter('rest_authentication_errors', 'forcefield_rest_nonce_bypass', 99);
-function forcefield_rest_nonce_bypass($access) {
-	if (defined('REST_NONCE_BYPASS') && REST_NONCE_BYPASS) {
-		global $wp_rest_auth_cookie; $wp_rest_auth_cookie = false;
-	}
-	return $access;
-}
+// 0.9.7: removed this filter as better hard-coded in development environment
+// Usage: You can add define a constant in your wp-config.php to bypass all REST API Nonce Checks
+// (this can be helpful to eliminate REST nonces as a cause of endpoint failure):
+// define('REST_NONCE_BYPASS', true);
+//
+// add_filter('rest_authentication_errors', 'forcefield_rest_nonce_bypass', 99);
+// function forcefield_rest_nonce_bypass($access) {
+//	if (defined('REST_NONCE_BYPASS') && REST_NONCE_BYPASS) {
+//		global $wp_rest_auth_cookie; $wp_rest_auth_cookie = false;
+//	}
+//	return $access;
+// }

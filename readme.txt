@@ -2,15 +2,15 @@
 Contributors: majick
 Donate link: http://wordquest.org/donate/?plugin=forcefield
 Tags: login protect, bot protect, api access, admin protect, xml rpc, rest api, security
-Author URI: http://dreamjester.net
-Plugin URI: http://wordquest.net/plugins/forcefield/
+Author URI: http://wordquest.org
+Plugin URI: http://wordquest.org/plugins/forcefield/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 3.0.0
-Tested up to: 4.9.8
+Tested up to: 4.9.10
 Stable tag: trunk
 
-Flexible Protection for Login, Registration, Commenting, REST API, XML RPC and more...
+Strong and Flexible Access, User Action, API and Role Protection
 
 == Description ==
 
@@ -20,11 +20,11 @@ Adds several layers of security to restrict access to common hacking attack vect
 
 Easily reduce Brute Force Password attacks, SPAM Comments, Fake User Registrations and Sploggers! Adds a dynamic Javascript Token field to all common user action forms: Login, Registration (plus BuddyPress Registration), Blog Signup (Multisite only), Lost Password and Commenting. 
 
-Since the majority of bots do not have the capacity to recognize or handle javascript fields, their attempts at access via these actions are instantly blocked - with repeat offender getting IP banned from further attempts.
+Since the majority of bots do not have the capacity to recognize or handle javascript fields, their attempts at access via these actions are instantly blocked - with repeat offender getting IP banned from further attempts. This gives seamless and invisible protection (without an annoying ReCaptcha field.)
 
 **Login Role Protection**
 
-A last line of defense against hackers who have managed to "somehow" create their own administrator account! Automatically block, notify by email, revoke role and/or demote to subscriber any "administrator" account that logs in who is not in an *explicit whitelist* of verified administrator usernames. Goodbye escalated privelage attack! (The same settings are also available for the Super Admin role on Multisite installs.)
+A last line of defense against hackers who have managed to "somehow" create their own administrator account! Automatically block, notify by email, revoke role and/or demote to subscriber any "administrator" account that logs in who is not in an *explicit whitelist* of verified administrator usernames. Goodbye escalated privelage attack! (The same settings are also available for the Super Admin role for Multisite installs.)
 
 **API Protection**
 
@@ -32,7 +32,7 @@ Adds several ways to restrict access to XML RPC and REST API features. While the
 
 **Behavioural Protection**
 
-ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (so you don't lock yourself out of your site!)
+ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (and so you don't lock yourself out of your site!)
 
 [ForceField Home](http://wordquest.org/plugins/forcefield/)
 [Support Forum](http://wordquest.org/support/forcefield/)
@@ -52,6 +52,16 @@ ForceField also records access to user actions missing referer headers, missing 
 
 
 == Changelog ==
+
+= 0.9.7 =
+* fix to transgression record check
+* fix for possible empty referrer global
+* fix to default limit settings
+* fix to function names for signup and lostpass token fields
+* fix to remove unchecked API role restrictions
+* update plugin loader class 1.0.6 for multiple alert emails
+* change single alert email setting type to allow multiple
+* removed REST API prefix change option (better hard-coded)
 
 = 0.9.6 =
 * Updated to use Plugin Loader Class

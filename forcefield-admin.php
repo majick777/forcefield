@@ -16,7 +16,7 @@ function forcefield_admin_page() {
 	$settings = $forcefield;
 
 	// --- manual debug for settings ---
-	// echo "<!-- ForceField Settings: ".PHP_EOL.print_r($forcefield,true).PHP_EOL." -->";
+	echo "<!-- ForceField Settings: ".PHP_EOL.print_r($forcefield,true).PHP_EOL." -->";
 
 	// --- get current setting tab ---
 	$currenttab = $forcefield['current_tab'];
@@ -79,16 +79,14 @@ function forcefield_admin_page() {
 		document.getElementById('general').style.display = 'none';
 		document.getElementById('role-protect').style.display = 'none';
 		document.getElementById('user-actions').style.display = 'none';
-		document.getElementById('xml-rpc').style.display = 'none';
-		document.getElementById('rest-api').style.display = 'none';
+		document.getElementById('api-access').style.display = 'none';
 		/* document.getElementById('auto-updates').style.display = 'none'; */
 		document.getElementById('ip-blocklist').style.display = 'none';
 		document.getElementById(tab).style.display = '';
 		document.getElementById('general-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById('role-protect-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById('user-actions-button').style.backgroundColor = '#DDDDDD';
-		document.getElementById('xml-rpc-button').style.backgroundColor = '#DDDDDD';
-		document.getElementById('rest-api-button').style.backgroundColor = '#DDDDDD';
+		document.getElementById('api-access-button').style.backgroundColor = '#DDDDDD';
 		/* document.getElementById('auto-updates-button').style.backgroundColor = '#DDDDDD'; */
 		document.getElementById('ip-blocklist-button').style.backgroundColor = '#DDDDDD';
 		document.getElementById(tab+'-button').style.backgroundColor = '#F0F0F0';
@@ -145,19 +143,12 @@ function forcefield_admin_page() {
 			if ($currenttab == 'role-protect') {echo ' style="background-color:#F0F0F0;"';}
 		echo '>'.__('Role Protect','forcefield').'</div></a></li>'.PHP_EOL;
 
-		// --- XML RPC ---
+		// --- API Access ---
 		echo '<li style="display:inline-block;">'.PHP_EOL;
-		echo '<a href="javascript:void(0);" onclick="showtab(\'xml-rpc\');" style="text-decoration:none;">'.PHP_EOL;
-		echo '<div id="xml-rpc-button" class="tab-button"';
-			if ($currenttab == 'xml-rpc') {echo ' style="background-color:#F0F0F0;"';}
-		echo '>'.__('XML RPC','forcefield').'</div></a></li>'.PHP_EOL;
-
-		// --- REST API ---
-		echo '<li style="display:inline-block;">'.PHP_EOL;
-		echo '<a href="javascript:void(0);" onclick="showtab(\'rest-api\');" style="text-decoration:none;">'.PHP_EOL;
-		echo '<div id="rest-api-button" class="tab-button"';
-			if ($currenttab == 'rest-api') {echo ' style="background-color:#F0F0F0;"';}
-		echo '>'.__('REST API','forcefield').'</div></a></li>'.PHP_EOL;
+		echo '<a href="javascript:void(0);" onclick="showtab(\'api-access\');" style="text-decoration:none;">'.PHP_EOL;
+		echo '<div id="api-access-button" class="tab-button"';
+			if ($currenttab == 'api-access') {echo ' style="background-color:#F0F0F0;"';}
+		echo '>'.__('API Access','forcefield').'</div></a></li>'.PHP_EOL;
 
 		// --- Auto Updates ---
 		// 0.9.6: removed auto updates page display
@@ -226,11 +217,10 @@ function forcefield_admin_page() {
 			echo '<tr><td class="valigntop"><b>'.__('Block Cooldown Time','forcefield').'</b></td>';
 			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cooldown">';
 			echo '<option value="none">'.__('None','forcefield').'</option>';
-			$selected = forcefield_get_setting('blocklist_cooldown', false);
+			$cooldown = forcefield_get_setting('blocklist_cooldown', false);
 			foreach ($intervals as $key => $interval) {
-				echo '<option value="'.$key.'"';
-					if ($selected == $key) {echo ' selected="selected"';}
-				echo '>'.$interval['display'].'</option>';
+				if ($cooldown == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('How often trangressions are reduced over time.','forcefield').'</div></td></tr>';
@@ -239,11 +229,10 @@ function forcefield_admin_page() {
 			echo '<tr><td class="valigntop"><b>'.__('Block Expiry Time','forcefield').'</b></td>';
 			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_expiry">';
 			echo '<option value="none">'.__('None','forcefield').'</option>';
-			$selected = forcefield_get_setting('blocklist_expiry', false);
+			$expiry = forcefield_get_setting('blocklist_expiry', false);
 			foreach ($intervals as $key => $interval) {
-				echo '<option value="'.$key.'"';
-					if ($selected == $key) {echo ' selected="selected"';}
-				echo '>'.$interval['display'].'</option>';
+				if ($expiry == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('How long before an IP block expires.','forcefield').'</div></td></tr>';
@@ -252,11 +241,10 @@ function forcefield_admin_page() {
 			echo '<tr><td class="valigntop"><b>'.__('Block Delete Time','forcefield').'</b></td>';
 			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_delete">';
 			echo '<option value="none">'.__('None','forcefield').'</option>';
-			$selected = forcefield_get_setting('blocklist_delete', false);
+			$delete = forcefield_get_setting('blocklist_delete', false);
 			foreach ($intervals as $key => $interval) {
-				echo '<option value="'.$key.'"';
-					if ($selected == $key) {echo ' selected="selected"';}
-				echo '>'.$interval['display'].'</option>';
+				if ($delete == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('How long before an IP record is deleted.','forcefield').'</div></td></tr>';
@@ -265,11 +253,10 @@ function forcefield_admin_page() {
 			echo '<tr><td class="valigntop"><b>'.__('CRON Cleanups','forcefield').'</b></td>';
 			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cleanups">';
 			echo '<option value="none">'.__('None','forcefield').'</option>';
-			$selected = forcefield_get_setting('blocklist_cleanups', false);
+			$cleanup = forcefield_get_setting('blocklist_cleanups', false);
 			foreach ($intervals as $key => $interval) {
-				echo '<option value="'.$key.'"';
-				if ($selected == $key) {echo ' selected="selected"';}
-					echo '>'.$interval['display'].'</option>';
+				if ($cleanup == $key) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$key.'"'.$selected.'>'.$interval['display'].'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('How often blocklist cleanups are scheduled.','forcefield').'</div></td></tr>';
@@ -591,7 +578,7 @@ function forcefield_admin_page() {
 			''			=> __('Just Block Login','forcefield'),
 			'remove'	=> __('Revoke this Role', 'forcefield'),
 			'demote'	=> __('Demote to Subscriber', 'forcefield'),
-			// 'delete'	=> __('Delete User', 'forcefield'),
+			'delete'	=> __('Delete User', 'forcefield'),
 		);
 
 		if ($currenttab != 'role-protect') {$hide = ' style="display:none;"';} else {$hide = '';}
@@ -655,9 +642,8 @@ function forcefield_admin_page() {
 			echo '<td class="select-cell" colspan="5" style="vertical-align:top;">';
 			echo '<select name="ff_admin_blockaction">';
 			foreach ($blockactions as $option => $label) {
-				echo '<option value="'.$option.'"';
-					if ($option == $blockaction) {echo ' selected="selected"';}
-				echo '>'.$label.'</option>';
+				if ($option == $blockaction) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$option.'"'.$selected.'>'.$label.'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('Extra Action for Admin Accounts not in Whitelist.','forcefield')."<br>";
@@ -725,9 +711,8 @@ function forcefield_admin_page() {
 			echo '<td class="select-cell" colspan="5" style="vertical-align:top;">';
 			echo '<select name="ff_super_blockaction">';
 			foreach ($blockactions as $option => $label) {
-				echo '<option value="'.$option.'"';
-					if ($option == $blockaction) {echo ' selected="selected"';}
-				echo '>'.$label.'</option>';
+				if ($option == $blockaction) {$selected = ' selected="selected"';} else {$selected = '';}
+				echo '<option value="'.$option.'"'.$selected.'>'.$label.'</option>';
 			}
 			echo '</select><div style="margin-left:20px; display:inline-block;">';
 			echo __('Extra Action for Admin Accounts not in Whitelist.','forcefield')."<br>";
@@ -737,13 +722,14 @@ function forcefield_admin_page() {
 		// --- close role protect options tab ---
 		echo '</table></div>';
 
+		// ==========
+		// API Access
+		// ==========
+		if ($currenttab != 'api-access') {$hide = ' style="display:none;"';} else {$hide = '';}
+		echo '<div id="api-access"'.$hide.'><table>';
 
-		// =======
-		// XML RPC
-		// =======
-		echo '<div id="xml-rpc"';
-			if ($currenttab != 'xml-rpc') {echo ' style="display:none;"';}
-		echo '><table>';
+			// XML RPC
+			// -------
 
 			// --- table heading ---
 			echo '<tr><td><h3 style="margin-bottom:10px;">XML RPC</h3></td></tr>';
@@ -850,18 +836,11 @@ function forcefield_admin_page() {
 			// 0.9.1: [PRO] XML RPC Method Restriction Options
 			if (function_exists('forcefield_pro_method_options')) {forcefield_pro_method_options();}
 
-		// --- close XML RPC tab ---
-		echo '</div>';
-
-
-		// ========
-		// REST API
-		// ========
-		if ($currenttab != 'rest-api') {$hide = ' style="display:none;"';} else {$hide = '';}
-		echo '<div id="rest-api"'.$hide.'><table>';
+			// REST API
+			// --------
 
 			// --- table heading ---
-			echo '<tr><td><h3 style="margin-bottom:10px;">REST API</h3></td></tr>';
+			echo '<table><tr><td><h3 style="margin-bottom:10px;">REST API</h3></td></tr>';
 
 			// --- disable REST API (restapi_disable) ---
 			echo '<tr><td><b>'.__('Disable REST API?','forcefield').'</b></td><td width="20"></td>';
@@ -940,13 +919,14 @@ function forcefield_admin_page() {
 			echo '<td>'.__('Disables JSONP Output for the REST API.','forcefield').'</td></tr>';
 
 			// --- REST API prefix (restapi_prefix) ---
-			// note default: "wp-json")
-			echo '<tr><td style="vertical-align:top;"><b>'.__('Prefix for REST API Access?','forcefield').'</b></td><td colspan="3"></td>';
-			echo '<td colspan="5"><input type="text" name="ff_restapi_prefix" value="';
-				echo forcefield_get_setting('restapi_prefix', false);
-			echo '"><br>'.__('Leave blank for no change. Default','forcefield').': "wp-json"';
-			echo '<br>'.__('Note: you may need to resave permalinks to effect.','forcefield');
-			echo '</td></tr>';
+			// 0.9.7: removed this option (this filter is better hardcoded in mu-plugins!)
+			// note default: "wp-json"
+			// echo '<tr><td style="vertical-align:top;"><b>'.__('Prefix for REST API Access?','forcefield').'</b></td><td colspan="3"></td>';
+			// echo '<td colspan="5"><input type="text" name="ff_restapi_prefix" value="';
+			//	echo forcefield_get_setting('restapi_prefix', false);
+			// echo '"><br>'.__('Leave blank for no change. Default','forcefield').': "wp-json"';
+			// echo '<br>'.__('Note: you may need to resave permalinks to effect.','forcefield');
+			// echo '</td></tr>';
 
 			// --- close REST API option table ---
 			echo '</table>';
@@ -966,15 +946,20 @@ function forcefield_admin_page() {
 
 		// --- Reset Button ---
 		echo '<tr><td width="33%" style="text-align:right;">'.PHP_EOL;
-			echo '<input type="submit" value="'.__('Reset to Defaults','forcefield').'" class="button-secondary" onclick="return returntodefaults();" style="margin-right:20px;">'.PHP_EOL;
-		echo '</td><td width="33%"> </td>'.PHP_EOL;
+			// 0.9.7: fix to incorrect javascript function (returntodefaults)
+			echo '<input type="submit" value="'.__('Reset to Defaults','forcefield').'" class="button-secondary" onclick="return resettodefaults();" style="margin-right:20px;">'.PHP_EOL;
+		echo '</td>';
+
+		// --- middle spacer ---
+		echo '<td width="33%"> </td>'.PHP_EOL;
 
 		// --- Update Submit Button ---
-		echo '<td width="33%"></td><td width="33%" style="text-align:center;">'.PHP_EOL;
-			echo '<input type="submit" class="button-primary" value="'.__('Update Settings','forcefield').'">'.PHP_EOL;
+		echo '<td width="33%" style="text-align:center;">'.PHP_EOL;
+			// 0.9.7: added missing ID tag for sidebar button trigger
+			echo '<input id="plugin-settings-save" type="submit" class="button-primary" value="'.__('Update Settings','forcefield').'">'.PHP_EOL;
 		echo '</td></tr>'.PHP_EOL;
 
-	// --- close udate buttons div ---
+	// --- close update buttons div ---
 	echo '</table><br></div>'.PHP_EOL;
 
 	// --- close main settings form ---
@@ -1019,18 +1004,22 @@ function forcefield_admin_page() {
 		// - group records by activity to show patterns ?
 
 		echo '<div id="blocklist-table"><table><tr>'.PHP_EOL;
-		echo '<td>'.__('IP Address','forcefield').'</td><td width="10"></td>'.PHP_EOL;
-		echo '<td>'.__('Block Reason','forcefield').'</td><td width="10"></td>'.PHP_EOL;
-		echo '<td>'.__('Transgressions','forcefield').'</td><td width="10"></td>'.PHP_EOL;
-		echo '<td>'.__('Blocked?','forcefield').'</td><td width="10"></td>'.PHP_EOL;
-		echo '<td>'.__('First Access','forcefield').'</td><td width="10"></td>'.PHP_EOL;
-		echo '<td>'.__('Last Access','forcefield').'</td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>'.__('IP Address','forcefield').'</b></td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>'.__('Block Reason','forcefield').'</b></td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>#</b></td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>'.__('Blocked?','forcefield').'</b></td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>'.__('First Access','forcefield').'</b></td><td width="10"></td>'.PHP_EOL;
+		echo '<td><b>'.__('Last Access','forcefield').'</b></td><td width="10"></td>'.PHP_EOL;
 		echo '<td></td></tr>'.PHP_EOL;
 
 		// --- output blocklist rows ---
 		foreach ($blocklist as $row) {
 
-			// --  IP Address ---
+			// --- check if IP blocked ---
+			$limit = forcefield_get_setting('limit_'.$row['label'], false);
+			if ($row['transgressions'] > $limit) {$blocked = true;} else {$blocked = false;}
+
+			// --- IP Address ---
 			echo '<tr><td>'.$row['ip'].'</td><td></td>'.PHP_EOL;
 
 			// --- record reason ---
@@ -1039,23 +1028,31 @@ function forcefield_admin_page() {
 			// --- number of transgressions ---
 			echo '<td>'.$row['transgressions'].'</td><td></td>'.PHP_EOL;
 
+			// --- red X indicates blocked IP ---
 			echo '<td>';
-				// --- red X indicates blocked IP ---
-				$limit = forcefield_get_setting('limit_'.$row['label'], false);
-				if ($row['transgressions'] > $limit) {echo '<font color="#E00;">X</font>';}
-			echo '</td>'.PHP_EOL;
+				if ($blocked) {echo '<font color="#E00;">Blocked</font>'.PHP_EOL;}
+			echo '</td><td></td>'.PHP_EOL;
 
 			// --- record created time date ---
-			echo '<td>'.date('H:i:s d-m-Y', $row['created_at']).'</td><td></td>'.PHP_EOL;
+			echo '<td>';
+				$display = date('d-m-y', $row['created_at']);
+				$title = date('H:i:s d-m-Y', $row['created_at']);
+				echo '<div title="'.$title.'">'.$display.'</div>'.PHP_EOL;
+			echo '</td><td></td>'.PHP_EOL;
 
 			// --- last access time date ---
-			echo '<td>'.date('H:i:s d-m-Y', $row['last_access_at']).'</td><td></td>'.PHP_EOL;
+			echo '<td>';
+				$display = date('d-m-y', $row['last_access_at']);
+				$title = date('H:i:s d-m-Y', $row['last_access_at']);
+				echo '<div title="'.$title.'">'.$display.'</div>';
+			echo '</td><td></td>'.PHP_EOL;
 
 			// --- record row removal button ---
-			echo '<td><input type="button" value="'.__('Delete','forcefield').'" onclick="unblockip(\''.$row['ip'].'\',\''.$row['label'].'\');"></td>'.PHP_EOL;
+			echo '<td><input type="button" value="X" class="button-secondary" title="'.__('Delete Record','forcefield').'" onclick="unblockip(\''.$row['ip'].'\',\''.$row['label'].'\');"></td>'.PHP_EOL;
 
 			// --- full IP unblock button ---
-			echo '<td><input type="button" value="'.__('Unblock IP','forcefield').'" onclick="unblockip(\''.$row['ip'].'\',\'\');"></td>'.PHP_EOL;
+			echo '<td>';
+				if ($blocked) {echo '<input type="button" class="button-secondary" value="'.__('Unblock','forcefield').'" title="'.__('Unblock this IP','forcefield').'" onclick="unblockip(\''.$row['ip'].'\',\'\');"></td>'.PHP_EOL;}
 			echo '</tr>'.PHP_EOL;
 		}
 
