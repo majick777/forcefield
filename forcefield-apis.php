@@ -163,6 +163,10 @@ function forcefield_restapi_access($access) {
 
 	// --- maybe SSL connection required ---
 	$requiressl = forcefield_get_setting('restapi_requiressl');
+	// 0.9.8: honour require SSL constant override
+	if (defined('FORCEFIELD_REQUIRE_SSL')) {
+		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	}
 	if ( ($requiressl == 'yes') && !is_ssl()) {
 		$errormessage = __('SSL connection is required to access the REST API.','forcefield');
 		$status = 403; // HTTP 403: Forbidden
