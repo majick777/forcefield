@@ -5,16 +5,13 @@ Plugin Name: ForceField
 Plugin URI: http://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Flexible Protection for Login, Registration, Commenting, REST API and XML RPC.
-Version: 0.9.2
+Version: 0.9.3
 Author URI: http://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only pro-functions.php
 */
 
-// TODO: selectable options for detecting IP address (like Shield)
-
-
-// TEMP: for REST API Nonce Check Bypass
+// [FOR TESTING ONLY] uncomment to bypass REST API Nonce Check
 // define('REST_NONCE_BYPASS', true);
 
 
@@ -26,7 +23,7 @@ GitHub Plugin URI: majick777/forcefield
 // -----------------
 global $wordquestplugins;
 $vslug = $vforcefieldslug = 'forcefield';
-$wordquestplugins[$vslug]['version'] = $vforcefieldversion = '0.9.2';
+$wordquestplugins[$vslug]['version'] = $vforcefieldversion = '0.9.3';
 $wordquestplugins[$vslug]['title'] = 'ForceField';
 $wordquestplugins[$vslug]['namespace'] = 'forcefield';
 $wordquestplugins[$vslug]['settings'] = $vpre = 'ff';
@@ -634,6 +631,11 @@ function forcefield_options_page() {
 		if (label != '') {unblockurl += label;}
 		document.getElementById('blocklist-action-frame').src = unblockurl;
 	}</script>";
+
+	// 0.9.3: show current IP addresses
+	$vserverip = forcefield_get_server_ip(); $vclientip = forcefield_get_remote_ip(true);
+	echo '<table width="100%"><tr><td width="50%"><b>'.__('Server IP','forcefield').'</b>: '.$vserverip.'</td>';
+	echo '<td width="50%"><b>'.__('Client IP (You)','forcefield').'</b>: '.$vclientip.'</td></tr></table>';
 
 	// settings tab selector buttons
 	echo '<ul style="list-style:none;">'.PHP_EOL;
@@ -1397,11 +1399,76 @@ function forcefield_alert_message($vmessage) {echo "<script>alert('".$vmessage."
 
 // get Remote IP Address
 // ---------------------
-function forcefield_get_remote_ip() {
-	if (!empty($_SERVER['HTTP_CLIENT_IP'])) {$vip = $_SERVER['HTTP_CLIENT_IP'];}
-	elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {$vip = $_SERVER['HTTP_X_FORWARDED_FOR'];}
-	else {$vip = $_SERVER['REMOTE_ADDR'];}
-	return $vip;
+function forcefield_get_remote_ip($vdebug=false) {
+
+	// 0.9.3: get server IP to match against
+	$vserverip = forcefield_get_server_ip($vdebug);
+
+	// 0.9.3: check remote address keys, filtering out server IP
+	$vipkeys = forcefield_get_remote_ip_keys();
+	foreach ($vipkeys as $vipkey) {
+		if ( (isset($_SERVER[$vipkey])) && (!empty($_SERVER[$vipkey])) ) {
+			$vip = $_SERVER[$vipkey];
+			if ( ($vip != $vserverip) && ($vip != '127.0.0.1') && ($vip != 'localhost') ) {
+				$viptype = forcefield_get_ip_type($_SERVER[$vipkey]);
+				if ($vdebug) {echo "<!-- \$_SERVER[".$vipkey."] : ".$vip." -->";}
+				if ($viptype) {return $_SERVER[$vipkey];}
+			}
+		}
+	}
+	return false;
+
+	// 0.9.3: [deprecated] old method, somewhat less reliable
+	// if (!empty($_SERVER['HTTP_CLIENT_IP'])) {$vip = $_SERVER['HTTP_CLIENT_IP'];}
+	// elseif (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) && (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {$vip = $_SERVER['HTTP_X_FORWARDED_FOR'];}
+	// else {$vip = $_SERVER['REMOTE_ADDR'];}
+	// return $vip;
+}
+
+// get IP Address keys
+// -------------------
+// 0.9.3: set possible $_SERVER keys for IP
+function forcefield_get_remote_ip_keys() {
+	$vipkeys = array(
+		'REMOTE_ADDR',
+		'HTTP_CF_CONNECTING_IP',
+		'HTTP_X_FORWARDED_FOR',
+		'HTTP_X_FORWARDED',
+		'HTTP_X_REAL_IP',
+		'HTTP_X_SUCURI_CLIENTIP',
+		'HTTP_INCAP_CLIENT_IP',
+		'HTTP_FORWARDED',
+		'HTTP_CLIENT_IP'
+	);
+	$vipkeys = apply_filters('forcefield_remote_ip_keys', $vipkeys);
+	return $vipkeys;
+}
+
+// get Server IP Address
+// ---------------------
+function forcefield_get_server_ip($vdebug=false) {
+	$vserverip = get_transient('forcefield_server_ip');
+	if ($vserverip) {return $vserverip;}
+
+	if (function_exists('gethostbyname')) {
+		// use DNS lookup of the server host name
+		$vhostname = $_SERVER['HTTP_HOST'];
+		if ($vdebug) {echo "<!-- Host Name: ".$vhostname." -->";}
+		$vserverip = gethostbyname($vhostname);
+	} else {
+		// ping IP server to reliably get server IP
+		$vurl = 'http://api.ipify.org/';
+		$vresponse = wp_remote_request($vurl, array('method' => 'GET'));
+		if (is_wp_error($vresponse)) {return false;}
+		if ( (!isset($vresponse['response']['code'])) || ($vresponse['response']['code'] != 200) ) {return false;}
+		$vserverip = $vresponse['body'];
+	}
+	if (!forcefield_get_ip_type($vserverip)) {return false;}
+	if ($vdebug) {echo "<!-- Server IP: ".$vserverip." -->";}
+
+	// store IP response so retrieved once daily max
+	set_transient('forcefield_server_ip', $vserverip, (24*60*60));
+	return $vserverip;
 }
 
 // get IP Address Type
@@ -1838,7 +1905,15 @@ function forcefield_comment_field() {forcefield_add_field('comment');}
 function forcefield_add_field($vcontext) {
 	$vtokenize = forcefield_get_setting($vcontext.'_token');
 	if ($vtokenize == 'yes') {
-		echo '<input type="hidden" id="auth_token" name="auth_token" value="" />';
+		// 0.9.3: add input via dynamic javascript instead of hardcoding
+		// echo '<input type="hidden" id="auth_token" name="auth_token_'.$vcontext.'" value="" />';
+		echo '<span id="dynamic-tokenizer"></span>';
+		echo "<script>var tokeninput = document.createElement('input');
+		tokeninput.setAttribute('type', 'hidden'); tokeninput.setAttribute('value', '');
+		tokeninput.setAttribute('id', 'auth_token_".$vcontext."');
+		tokeninput.setAttribute('name', 'auth_token_".$vcontext."');
+		document.getElementById('dynamic-tokenizer').appendChild(tokeninput);</script>";
+
 		$vframesrc = admin_url('admin-ajax.php')."?action=forcefield_".$vcontext;
 		echo '<iframe style="display:none;" name="auth_frame" id="auth_frame" src="'.$vframesrc.'"></iframe>';
 	}
@@ -1862,8 +1937,12 @@ function forcefield_comment_token() {forcefield_output_token('comment');}
 // ---------------------
 function forcefield_output_token($vcontext) {
 	$vtoken = forcefield_create_token($vcontext);
-	// TODO: extra javascript obfuscation of token value?
-	echo "<script>parent.document.getElementById('auth_token').value = '".$vtoken."';</script>";
+	// 0.9.3: some extra javascript obfuscation of token value
+	$vsplitstring = str_split($vtoken, 1);
+	echo "<script>var bits = new Array();";
+	foreach ($vsplitstring as $vi => $vchar) {echo "bits[".$vi."] = '".$vchar."'; ";}
+	echo "bytes = bits.join('');
+	parent.document.getElementById('auth_token_".$vcontext."').value = bytes;</script>";
 	exit;
 }
 
@@ -2736,7 +2815,7 @@ function forcefield_blocklist_table_init() {
 // 0.9.1: check blocklist table exists
 function forcefield_blocklist_check_table() {
 	global $wpdb, $vforcefield;
-	$vtablequery = "SHOW TABLES LIKE ".$vforcefield['table'];
+	$vtablequery = "SHOW TABLES LIKE '".$vforcefield['table']."'";
 	$vchecktable = $wpdb->get_var($vtablequery);
 	if ($vchecktable != $vforcefield['table']) {return false;}
 	return true;
@@ -2926,7 +3005,7 @@ function forcefield_blocklist_cooldown($vrecord) {
 // -------------------------
 function forcefield_blocklist_expire_old_rows($vtimestamp, $vreason=false, $vip=false) {
 	global $wpdb, $vforcefield;
-	$vquery = "UPDATE ".$vforcefield['table']." SET `deleted_at` = %s WHERE `last_access_at` < %s"; // "
+	$vquery = "UPDATE '".$vforcefield['table']."' SET `deleted_at` = %s WHERE `last_access_at` < %s"; // "
 	$vquery = $wpdb->prepare($vquery, array(time(), $vtimestamp));
 	if ($vreason) {
 		if ($vreason == 'admin_bad') {return false;} // never auto-expire

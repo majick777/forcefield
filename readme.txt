@@ -53,7 +53,7 @@ Also option to output a form to banned IPs to unblock themselves manually in cas
 
 1. Upload `forcefield.zip` via the Wordpress plugin installer.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
-3. 
+3. Access the Plugin Settings via the WordQuest -> ForceField menu
 
 == Frequently Asked Questions ==
 
@@ -65,6 +65,9 @@ Also option to output a form to banned IPs to unblock themselves manually in cas
 
 
 == Changelog ==
+
+= 0.9.3 = 
+* Dynamically add token input field to forms
 
 = 0.9.2 = 
 * Single Global Plugin Settings Array
