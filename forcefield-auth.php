@@ -468,14 +468,25 @@ function forcefield_login_validate($user, $username, $password) {
 
 		} else {
 
-			// --- token provided so clear old records ---
+			// --- sanitize posted token ---
+			// 0.9.9: added check for valid token
+			$authtoken = $_POST['auth_token_login'];
+			$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+			if (!$checkposted || (strlen($checkposted) != 12)) {
+				do_action('forcefield_login_invalid');
+				do_action('forcefield_login_failed');
+				$status = 400; // HTTP 400: Bad Request
+				return forcefield_filtered_error('login_token_invalid', $errormessage, $status);
+			}
+
+			// --- valid token provided so clear old records ---
 			// 0.9.1: maybe clear no token records
 			forcefield_blocklist_delete_record(false, 'no_token');
 			forcefield_blocklist_delete_record(false, 'no_login_token');
 
 		}
 
-		$authtoken = $_POST['auth_token_login'];
+		// --- get login token for IP ---
 		$checktoken = forcefield_check_token('login');
 
 		// --- check token ---
@@ -621,13 +632,26 @@ function forcefield_registration_authenticate($errors, $sanitized_user_login, $u
 		return forcefield_filtered_error('register_token_missing', $errormessage, $status, $errors);
 
 	} else {
+
+		// --- sanitize posted token ---
+		// 0.9.9: added check for valid token
+		$authtoken = $_POST['auth_token_register'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+		if (!$checkposted || (strlen($checkposted) != 12)) {
+			do_action('forcefield_register_invalid');
+			do_action('forcefield_register_failed');
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('register_token_invalid', $errormessage, $status);
+		}
+
 		// --- token present, clear old records ---
 		// 0.9.1: maybe clear no token records
 		forcefield_blocklist_delete_record(false, 'no_token');
 		forcefield_blocklist_delete_record(false, 'no_register_token');
+
 	}
 
-	$authtoken = $_POST['auth_token_register'];
+	// --- get register token for IP ---
 	$checktoken = forcefield_check_token('register');
 
 	// --- check token ---
@@ -752,6 +776,17 @@ function forcefield_signup_authenticate($results) {
 
 	} else {
 
+		// --- sanitize posted token ---
+		// 0.9.9: added check for valid token
+		$authtoken = $_POST['auth_token_signup'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+		if (!$checkposted || (strlen($checkposted) != 12)) {
+			do_action('forcefield_signup_invalid');
+			do_action('forcefield_signup_failed');
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('signup_token_invalid', $errormessage, $status);
+		}
+
 		// --- delete old records ---
 		// 0.9.1: maybe clear no token records
 		forcefield_blocklist_delete_record(false, 'no_token');
@@ -759,7 +794,7 @@ function forcefield_signup_authenticate($results) {
 
 	}
 
-	$authtoken = $_POST['auth_token_signup'];
+	// --- check for signup token for IP ---
 	$checktoken = forcefield_check_token('signup');
 
 	// --- check token ---
@@ -884,6 +919,18 @@ function forcefield_lost_password_authenticate($allow) {
 		return forcefield_filtered_error('lostpass_token_missing', $errormessage, $status);
 
 	} else {
+
+		// --- sanitize posted token ---
+		// 0.9.9: added check for valid token
+		$authtoken = $_POST['auth_token_lostpass'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+		if (!$checkposted || (strlen($checkposted) != 12)) {
+			do_action('forcefield_lostpass_invalid');
+			do_action('forcefield_lostpass_failed');
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('lostpass_token_invalid', $errormessage, $status);
+		}
+
 		// --- remove old records ---
 		// 0.9.1: maybe clear no token records
 		forcefield_blocklist_delete_record(false, 'no_token');
@@ -891,7 +938,7 @@ function forcefield_lost_password_authenticate($allow) {
 
 	}
 
-	$authtoken = $_POST['auth_token_lostpass'];
+	// --- check for lost password token for IP ---
 	$checktoken = forcefield_check_token('lostpass');
 
 	// --- check token ---
@@ -1011,15 +1058,28 @@ function forcefield_preprocess_comment($comment) {
 
 	} else {
 
+		// --- sanitize posted token ---
+		// 0.9.9: added check for valid token
+		$authtoken = $_POST['auth_token_comment'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+		if (!$checkposted || (strlen($checkposted) != 12)) {
+			do_action('forcefield_comment_invalid');
+			do_action('forcefield_comment_failed');
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('comment_token_invalid', $errormessage, $status);
+		}
+
 		// --- delete old no token records ---
 		// 0.9.1: maybe clear no token records
 		forcefield_blocklist_delete_record(false, 'no_token');
 		forcefield_blocklist_delete_record(false, 'no_comment_token');
+
 	}
 
-	// --- check token ---
-	$authtoken = $_POST['auth_token_comment'];
+	// --- check for comment token for IP ---
 	$checktoken = forcefield_check_token('comment');
+
+	// --- check token ---
 	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$checktoken) {
 
@@ -1143,15 +1203,27 @@ function forcefield_buddypress_authenticate() {
 
 	} else {
 
+		// --- sanitize posted token ---
+		// 0.9.9: added check for valid token
+		$authtoken = $_POST['auth_token_buddypress'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+		if (!$checkposted || (strlen($checkposted) != 12)) {
+			do_action('forcefield_buddypress_invalid');
+			do_action('forcefield_buddypress_failed');
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error('buddypress_token_invalid', $errormessage, $status);
+		}
+
 		// --- maybe clear no token records ---
 		forcefield_blocklist_delete_record(false, 'no_token');
 		forcefield_blocklist_delete_record(false, 'no_buddypress_token');
 
 	}
 
-	// --- check token ---
-	$authtoken = $_POST['auth_token_buddypress'];
+	// --- check for BuddyPress token for IP ---
 	$checktoken = forcefield_check_token('buddypress');
+
+	// --- check token ---
 	// 0.9.5: check now returns an array so we check 'value' key
 	if (!$checktoken) {
 

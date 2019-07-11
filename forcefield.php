@@ -56,6 +56,7 @@ if (!function_exists('add_action')) {exit;}
 
 // Development TODOs
 // -----------------
+// - option to require user to be logged in for blog signup ?
 // - Idea: single device sign-ons (force logout other sessions)
 // - Idea: track changes to more options table values
 // -- check home and siteurl options against WP_HOME and WP_SITEURL constants ?
