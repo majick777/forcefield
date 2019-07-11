@@ -632,8 +632,12 @@ function forcefield_blocklist_unblock_check() {
 	// 0.9.7: added check if unblock token set
 	if (isset($_POST['auth_token_unblock'])) {
 
-		// --- check token field ---
+		// --- get sanitized post value ---
+		// 0.9.9: strip non alphanumeric characters
 		$authtoken = $_POST['auth_token_unblock'];
+		$checkposted = preg_match('/^[a-zA-Z0-9]+$/', $posted);
+
+		// --- check token exists for IP ---
 		$checktoken = forcefield_check_token('unblock');
 
 		// 0.9.5: check now returns an array so we check 'value' key
@@ -642,7 +646,13 @@ function forcefield_blocklist_unblock_check() {
 			// --- unblock token expired ---
 			$message = __('Time limit expired. Refresh the page and try again.','forcefield');
 
-		} elseif ($authtoken != $checktoken['value']) {
+		} elseif (!$checkposted || (strlen($checkposted) != 12)) {
+
+			// --- fail, invalid token ---
+			// 0.9.9: added check for alphanumeric and token length
+			$message = __('Invalid unblock token. IP Unblock Failed.','forcefield');
+
+		}elseif ($authtoken != $checktoken['value']) {
 
 			// --- fail, token is a mismatch ---
 			$message = __('Invalid Request. IP Unblock Failed.','forcefield');

@@ -988,6 +988,7 @@ function forcefield_admin_page() {
 					$verified .= " <span style='color:#00d500;'>".__('API Key Verified','forcefield')."</span>";}
 					update_option('forcefield_wbvulndb_verified', true);
 			} else {$verified = '';}
+			echo "<!-- Token Verified: ".get_option('forcefield_wbvulndb_verified')." -->";
 
 			// --- vulnerability checker API key (vuln_api_token) ---
 			echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>'.__('WPVulnDB API Key','forcefield').'</b><br>';

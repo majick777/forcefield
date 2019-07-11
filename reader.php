@@ -11,9 +11,12 @@
 # <http://daringfireball.net/projects/markdown/>
 #
 
-
-define( 'MARKDOWN_VERSION',  "1.0.2" ); # 29 Nov 2013
-define( 'MARKDOWNEXTRA_VERSION',  "1.2.8" ); # 29 Nov 2013
+if (!defined('MARKDOWN_VERSION')) {
+	define( 'MARKDOWN_VERSION',  "1.0.2" ); # 29 Nov 2013
+}
+if (!defined('MARKDOWNEXTRA_VERSION')) {
+	define( 'MARKDOWNEXTRA_VERSION',  "1.2.8" ); # 29 Nov 2013
+}
 
 
 #
@@ -21,25 +24,41 @@ define( 'MARKDOWNEXTRA_VERSION',  "1.2.8" ); # 29 Nov 2013
 #
 
 # Change to ">" for HTML output
-@define( 'MARKDOWN_EMPTY_ELEMENT_SUFFIX',  " />");
+if (!defined('MARKDOWN_EMPTY_ELEMENT_SUFFIX')) {
+	@define( 'MARKDOWN_EMPTY_ELEMENT_SUFFIX', " />");
+}
 
 # Define the width of a tab for code blocks.
-@define( 'MARKDOWN_TAB_WIDTH',     4 );
+if (!defined('MARKDOWN_TAB_WIDTH')) {
+	@define( 'MARKDOWN_TAB_WIDTH', 4 );
+}
 
 # Optional title attribute for footnote links and backlinks.
-@define( 'MARKDOWN_FN_LINK_TITLE',         "" );
-@define( 'MARKDOWN_FN_BACKLINK_TITLE',     "" );
+if (!defined('MARKDOWN_FN_LINK_TITLE')) {
+	@define( 'MARKDOWN_FN_LINK_TITLE', "" );
+}
+if (!defined('MARKDOWN_FN_BACKLINK_TITLE')) {
+	@define( 'MARKDOWN_FN_BACKLINK_TITLE', "" );
+}
 
 # Optional class attribute for footnote links and backlinks.
-@define( 'MARKDOWN_FN_LINK_CLASS',         "" );
-@define( 'MARKDOWN_FN_BACKLINK_CLASS',     "" );
+if (!defined('MARKDOWN_FN_LINK_CLASS')) {
+	@define( 'MARKDOWN_FN_LINK_CLASS', "" );
+}
+if (!defined('MARKDOWN_FN_BACKLINK_CLASS')) {
+	@define( 'MARKDOWN_FN_BACKLINK_CLASS', "" );
+}
 
 # Optional class prefix for fenced code block.
-@define( 'MARKDOWN_CODE_CLASS_PREFIX',     "" );
+if (!defined('MARKDOWN_CODE_CLASS_PREFIX')) {
+	@define( 'MARKDOWN_CODE_CLASS_PREFIX', "" );
+}
 
 # Class attribute for code blocks goes on the `code` tag;
 # setting this to true will put attributes on the `pre` tag instead.
-@define( 'MARKDOWN_CODE_ATTR_ON_PRE',   false );
+if (!defined('MARKDOWN_CODE_ATTR_ON_PRE')) {
+	@define( 'MARKDOWN_CODE_ATTR_ON_PRE', false );
+}
 
 
 #
@@ -47,19 +66,24 @@ define( 'MARKDOWNEXTRA_VERSION',  "1.2.8" ); # 29 Nov 2013
 #
 
 # Change to false to remove Markdown from posts and/or comments.
-@define( 'MARKDOWN_WP_POSTS',      true );
-@define( 'MARKDOWN_WP_COMMENTS',   true );
-
+if (!defined('MARKDOWN_WP_POSTS')) {
+	@define( 'MARKDOWN_WP_POSTS', false );
+}
+if (!defined('MARKDOWN_WP_COMMENTS')) {
+ @define( 'MARKDOWN_WP_COMMENTS', false );
+}
 
 
 ### Standard Function Interface ###
+if (!defined('MARKDOWN_PARSER_CLASS')) {
+	@define( 'MARKDOWN_PARSER_CLASS',  'MarkdownExtra_Parser' );
+}
 
-@define( 'MARKDOWN_PARSER_CLASS',  'MarkdownExtra_Parser' );
-
-function Markdown($text) {
-#
-# Initialize the parser and return the result of its transform method.
-#
+if (!function_exists('Markdown')) {
+ function Markdown($text) {
+ #
+ # Initialize the parser and return the result of its transform method.
+ #
 	# Setup static parser variable.
 	static $parser;
 	if (!isset($parser)) {
@@ -69,13 +93,15 @@ function Markdown($text) {
 
 	# Transform text using parser.
 	return $parser->transform($text);
+ }
 }
 
 #
 # Markdown Parser Class
 #
 
-class Markdown_Parser {
+if (!class_exists('Markdown_Parser')) {
+ class Markdown_Parser {
 
 	### Configuration Variables ###
 
@@ -3110,6 +3136,7 @@ class MarkdownExtra_Parser extends Markdown_Parser {
 		}
 	}
 
+ }
 }
 
 
@@ -3205,7 +3232,8 @@ software, even if advised of the possibility of such damage.
 // WordPress Readme Parser
 // -----------------------
 
-Class WordPress_Readme_Parser {
+if (!class_exists('WordPress_Readme_Parser')) {
+ Class WordPress_Readme_Parser {
 
 	function __construct() {
 		// This space intentially blank
@@ -3524,5 +3552,5 @@ Class WordPress_Readme_Parser {
 		return "`$text`";
 	}
 
-} // end class
-
+ } // end class
+}
