@@ -4,7 +4,7 @@
 // === WORDQUEST PLUGIN HELPER ===
 // ===============================
 
-$wordquestversion = '1.7.4';
+$wordquestversion = '1.7.5';
 
 // === Notes ===
 // - Changelog at end of this file
@@ -1684,7 +1684,6 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 	if ($sidebaroptions['donationboxoff'] == 'checked') {$hide = " style='display:none;'>";} else {echo $hide = '';}
 	echo '<div id="donate"'.$hide.'>';
 
-    echo "<!--- ".$freepremium." -->";
 	if ($freepremium == 'free') {
 
         echo '<div class="stuffbox" style="width:250px;background-color:#ffffff;">';
@@ -1860,13 +1859,26 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 
     // --- set button image URL ---
     if ($pluginslug == 'bioship') {$imageurl = get_template_directory_uri().'/images/patreon-button.jpg';}
-    else {$imageurl = plugins_url('images/patreon-button.jpg', __FILE__);}
+    else {
+        // 1.7.5: check/fix for Patreon button URL (cross-versions)
+        if (file_exists(dirname(__FILE__).'/images/patreon-button.jpg')) {
+            $imageurl = plugins_url('images/patreon-button.jpg', __FILE__);
+        } else {
+            // --- try to reliably get actual plugin path/URL ---
+            $realslug = sanitize_title($wordquestplugins[$pluginslug]['title']);
+            if (file_exists(WP_PLUGIN_DIR.'/'.$realslug.'/images/patreon-button.jpg')) {
+                $imageurl = WP_PLUGIN_URL.'/'.$realslug.'/images/patreon-button.jpg';
+            }
+        }
+    }
     $imageurl = apply_filters('wqhelper_donate_image', $imageurl, $pluginslug);
     
     // --- output Patreon button ---
     echo "<center><div class='supporter-message'>".$message."</div>".PHP_EOL;
     echo "<a href='".$donatelink."' target=_blank>";
-    echo "<img id='patreon-button' src='".$imageurl."'></a><center>".PHP_EOL;
+        if ($imageurl) {echo "<img id='patreon-button' src='".$imageurl."'>";}
+        else {echo __('Become a Patron','forcefield');}
+    echo "</a><center>".PHP_EOL;
 
     // --- image hover styling ---
     echo "<style>.supporter-message {font-size:15px; margin-bottom:5px;}
@@ -2823,6 +2835,9 @@ if (!isset($wqfunctions[$funcname]) || !is_callable($wqfunctions[$funcname])) {
 // -----------------
 // === Changelog ===
 // -----------------
+
+// = 1.7.5 =
+// - check/fix for Patreon button image URL (cross-versions)
 
 // = 1.7.4 =
 // - simplified PHP 5.3 minimum check

@@ -58,6 +58,30 @@ Checks your installed core, plugins and themes for known vulnerabilities and sen
 
 == Changelog ==
 
+= 1.0.0 =
+* remove Curl fallback for Vulnerability Checker API
+* updated to WordQuest Helper 1.7.5 (button fix)
+* fix to loop multiple vulnerability item in admin notice
+* fix to current installed version vulnerability check 
+* fix to set new vulnerabilities array empty subarrays
+* fix to multi-update form on vulnerabilities list
+* fix to remove missing resources from vulnerability list
+* added clearing of theme and plugin cache for checker
+
+= 0.9.9 =
+* updated Freemius SDK to 2.3.0
+* sanitize and validate all posted action token values
+* vulnerability API check default to use wp_remote_get
+* fix to vulnerability checker already updated check
+* fix to vulnarability alert emails for plugins/themes
+* allow listing multiple vulnerabilities per resource
+* added vulnerability notice dismissal button / AJAX
+* added vulnerability checker API overload Detection
+* added vulnerability checker auto-resume at position
+* improved admin notice vulnerability display table
+* improved background trigger for vulnerability check
+* improved error checking for vulnerability checker
+
 = 0.9.8 =
 * updated WordQuest Helper library to 1.7.4
 * added vulnerability checker for core, plugins and themes!
