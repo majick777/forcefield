@@ -38,11 +38,12 @@ function forcefield_vulnerabilities_check_schedule() {
     global $forcefield;
 
     // --- maybe reset vulnerability check ---
-    if (isset($_GET['resetcheck'])) {
-        if ( ($_GET['resetcheck'] == 'all') && current_user_can('manage_options') ) {
+    // 1.0.0: prefixed reset check querystring trigger
+    if (isset($_GET['ff-reset-check'])) {
+        if ( ($_GET['ff-reset-check'] == 'all') && current_user_can('manage_options') ) {
             delete_option('forcefield_vulnerability_checks');
         } else {
-            $reset = $_GET['resetcheck'];
+            $reset = $_GET['ff-reset-check'];
             if (in_array('reset', array('core', 'plugins', 'themes'))) {
                 $checktimes = get_option('forcefield_vulnerability_checks');
                 if (isset($checktimes[$reset])) {
@@ -54,7 +55,10 @@ function forcefield_vulnerabilities_check_schedule() {
                         unset($checktimes[$reset]);
                         if (count($checktimes) > 0) {
                             update_option('forcefield_vulnerability_checks', $checktimes);
-                        } else {delete_option('forcefield_vulnerability_checks');}
+                        } else {
+                            $checktimes = false;
+                            delete_option('forcefield_vulnerability_checks');
+                        }
                     }
                 }
             }
@@ -62,9 +66,8 @@ function forcefield_vulnerabilities_check_schedule() {
     }
 
     // --- check check times ---
-    $checktimes = get_option('forcefield_vulnerability_checks');
+    if (!isset($checktimes)) {$checktimes = get_option('forcefield_vulnerability_checks');}
     if (!$checktimes) {$checktimes = array();}
-
     if (!isset($checktimes['core'])) {$checktimes['core'] = '';}
     if (!isset($checktimes['plugins'])) {$checktimes['plugins'] = '';}
     if (!isset($checktimes['themes'])) {$checktimes['themes'] = '';}
@@ -195,7 +198,8 @@ function forcefield_vulnerability_store_current($response, $hook_extra) {
             }
         }
     }
-    return $reponse;
+    // 1.0.0: fix to variable typo (reponse)
+    return $response;
 }
 
 // --------------------------------
@@ -245,8 +249,9 @@ function forcefield_vulnerabilities_check($type='all', $checkname=false) {
     if ( ($type == 'all') || ($type == 'core') ) {$checkname = false;}
 
     // --- get cached report ---
+    // 1.0.0: fix to new array (empty array values not empty strings)
     $report = $lastcheck = array(); 
-    $new = array('core' => '', 'plugins' => '', 'themes' => '');
+    $new = array('core' => array(), 'plugins' => array(), 'themes' => array());
     $cachedreport = get_option('forcefield_vulnerability_report');
     if ($cachedreport) {$report = $cachedreport;}
 
@@ -259,8 +264,9 @@ function forcefield_vulnerabilities_check($type='all', $checkname=false) {
 
     // --- filter for sslverify ---
     // 0.9.9: added to help some users bypass SSL connection errors
-    $sslverify = apply_filters('forcefield_vuln_ssl_verify', $sslverify);
-    if (!$sslverify) {$args['sslverify'] = false;}
+    // 1.0.0: fix to undefined variable warning and force boolean
+    $sslverify = apply_filters('forcefield_vuln_ssl_verify', true);
+    $args['sslverify'] = (bool)$sslverify;
     
     // --- check for saved WP VulnDB Token ---
     $token = forcefield_get_setting('vuln_api_token');
@@ -309,6 +315,8 @@ function forcefield_vulnerabilities_check($type='all', $checkname=false) {
     if ( ($type == 'plugins') || ($type == 'all') ) {
 
         // --- get all plugins ---
+        // 1.0.0: clear plugin cache to ensure accurate matching
+        wp_clean_plugins_cache(false);
         if (!function_exists('get_plugins')) {
             require_once ABSPATH.'wp-admin/includes/plugin.php';
         }
@@ -376,6 +384,8 @@ function forcefield_vulnerabilities_check($type='all', $checkname=false) {
         if (isset($report['themes'])) {$existing = $report['themes'];} else {$existing = array();}
 
         // --- get all themes ---
+        // 1.0.0: clear theme cache to ensure accurate matching
+        wp_clean_themes_cache(false);
         $themes = wp_get_themes(); 
 
         // --- loop themes ---
@@ -489,6 +499,7 @@ function forcefield_vulnerability_is_new($items, $existing) {
 // Get API Response Data
 // ---------------------
 // 0.9.9: set default method to wp_remote_get (with Curl fallback)
+// 1.0.0: removed Curl fallback (handled by HTTP API)
 function forcefield_get_response_data($url, $args, $method='get') {
 
     global $forcefield;
@@ -499,10 +510,9 @@ function forcefield_get_response_data($url, $args, $method='get') {
         $url = str_replace('/v3/', '/v2/', $url);
     }
 
-    // --- allow for response method overrides ---
-    if (defined('FORCEFIELD_API_METHOD')) {$method = FORCEFIELD_API_METHOD;}
-    elseif (isset($forcefield['api_method'])) {$method = $forcefield['api_method'];}
-    if (!in_array($method, array('get', 'curl'))) {$method = 'get';}
+    // --- check for ssl verify override ---
+    // 1.0.0: added for error fallback handling
+    if (isset($forcefield['ssl_verify'])) {$args['sslverify'] = $forcefield['ssl_verify'];}
 
     // --- bug out if external requests are blocked ---
     if (defined('WP_HTTP_BLOCK_EXTERNAL') && WP_HTTP_BLOCK_EXTERNAL) {
@@ -520,59 +530,36 @@ function forcefield_get_response_data($url, $args, $method='get') {
     // --- dev debug switch ---
     $debug = false; // $debug = true;
 
-    if ($method == 'get') {
+    // --- get URL with wp_remote_get ---
+    $response = wp_remote_get($url, $args);
 
-        // --- get URL with wp_remote_get ---
-        $response = wp_remote_get($url, $args);
-        // if ($debug) {echo "<!-- Raw: ".print_r($response,true)." -->".PHP_EOL;}
-        if (!is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            if (stristr($body, 'Retry later')) {
-                $forcefield['api_overload'] = true; return false;
+    // --- check for response errors ---
+    if (is_wp_error($response)) {
+        if ($debug) {echo "<!-- Error: ".print_r($response,true)." -->".PHP_EOL;}
+        $errors = $response->errors;
+        foreach ($errors as $error) {
+            if (stristr($error, 'cURL error 35')) {
+                // --- set sslverify to false and try again ---
+                $forcefield['ssl_verify'] = $args['sslverify'] = false;
+                $response = wp_remote_get($url, $args);        
             }
-            $code = wp_remote_retrieve_response_code($response);
-            if ($debug) {echo "<!-- Body: ".$body." -->".PHP_EOL;}
-            $result = (array) json_decode($body, true);
-        } else {
-            // 0.9.9: fallback to using curl
-            $forcefield['api_method'] = $method = 'curl';
+        }
+        if (is_wp_error($response)) {
+            if ($debug) {echo "<!-- Error: ".print_r($response,true)." -->".PHP_EOL;}
+            return false;
         }
     }
-        
-    if ($method == 'curl') {
 
-        // --- get URL with Curl ---
-        // 0.9.9: added check that curl extension is loaded
-        if (extension_loaded('curl')) {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $args['timeout']);
-            curl_setopt($ch, CURLOPT_USERAGENT, $args['user-agent']);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-            // curl_setopt($ch, CURLOPT_SSLVERSION, 3);
-            if (isset($args['headers'])) {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $args['headers']);
-            }
-            $data = curl_exec($ch);
-            if ($debug) {
-                if ($data === false) {echo "<!-- Curl Error: ".curl_error($ch)." -->";}
-                else {echo "<!-- Body: ".print_r($data,true)." -->".PHP_EOL;}
-            }
-            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if (stristr($data, 'Retry later')) {
-                $forcefield['api_overload'] = true; return false;
-            }
-
-            // --- decode response ---
-            $result = (array) json_decode($data, true);
-
+    if ($debug) {echo "<!-- Raw: ".print_r($response,true)." -->".PHP_EOL;}
+    if (!is_wp_error($response)) {
+        $body = wp_remote_retrieve_body($response);
+        if (stristr($body, 'Retry later')) {
+            $forcefield['api_overload'] = true; return false;
         }
-
-    }
+        $code = wp_remote_retrieve_response_code($response);
+        if ($debug) {echo "<!-- Body: ".$body." -->".PHP_EOL;}
+        $result = (array) json_decode($body, true);
+    } 
 
     // --- check result ---
     // 0.9.9: move out
@@ -596,7 +583,7 @@ function forcefield_get_response_data($url, $args, $method='get') {
 // ---------------------------
 // Create Vulnerabilities List
 // ---------------------------
-function forcefield_vulnerabilities_list($type, $items=null) {
+function forcefield_vulnerabilities_list($type, $matchitems=null) {
 
     $debug = false; // $debug = true;
 
@@ -610,7 +597,12 @@ function forcefield_vulnerabilities_list($type, $items=null) {
     $dismissed = get_option('forefield_vulnerability_dismissed');
     if (!$dismissed) {$dismissed = array();}
 
-    // --- get all resources ---
+    // --- clear theme and plugin cache ---
+    // 1.0.0: added to ensure accurate matching
+    wp_clean_plugins_cache(false);
+    wp_clean_themes_cache(false);
+    
+    // --- get all resources for matching ---
     global $wp_version;
     if (!function_exists('get_plugins')) {
         require_once ABSPATH.'wp-admin/includes/plugin.php';
@@ -621,76 +613,114 @@ function forcefield_vulnerabilities_list($type, $items=null) {
     // --- loop report items for type ---
     $htmllist = $textlist = array(); $changed = false;
     $itemcount = count($report[$type]);
-    foreach ($report[$type] as $itemname => $item) {
+    foreach ($report[$type] as $itemname => $items) {
 
-        // --- check if notice has been dismissed  ---
-        // 0.9.9: added notice dismissal check
-        if (!in_array($item['id'], $dismissed)) {
+        // 1.0.0: add check if resource still installed
+        if ( ($type == 'plugins') && array_key_exists($itemname, $plugins)  
+          || ($type == 'themes') && array_key_exists($itemname, $themes)
+          || ($type == 'core') ) {
 
-            // --- recheck vulnerabilities ---
-            // (as updates may have occurred since found)
-            $skip = $updateurl = false;
-            if ($type == 'core') {
-                $version = $wp_version;
-                // 0.9.9: fix to version compare clearing updated items
-                if (version_compare($version, $item['fixed_in'], '<')) {
-                    unset($report[$type][$itemname]); $changed = $skip = true;
-                } else {
-                    // --- clear dismissed updates and force update check ---
-                    delete_site_option('dismissed_update_core');
-                    delete_site_transient('update_core');
-                    $updates = get_core_updates();
-                    if (!isset($updates[0]->response) || 'latest' == $updates[0]->response) {
-                        // well that is strange, no core update is available yet
-                    } else {$updateurl = admin_url('update-core.php');}
-                }
-            } elseif ($type == 'plugins') {
-                foreach ($plugins as $name => $details) {
-                    if ($name == $itemname) {
-                        $displayname = $details['Name'];
-                        $version = $details['Version'];
+            // 1.0.0: fix to loop multiple items
+            foreach ($items as $i => $item) {
+
+                // --- check if notice has been dismissed  ---
+                // 0.9.9: added notice dismissal check
+                if (!in_array($item['id'], $dismissed)) {
+
+                    // --- recheck vulnerabilities ---
+                    // (as updates may have occurred since found)
+                    $skip = $updateurl = false;
+                    if ($type == 'core') {
+                        $version = $wp_version;
                         // 0.9.9: fix to version compare clearing updated items
-                        if (version_compare($version, $item['fixed_in'], '<')) {
-                            unset($report[$type][$itemname]); $changed = $skip = true;
+                        // 1.0.0: fix again for when version equals fixed version
+                        if ($debug) {echo "<!-- Core: ".$version." - Fixed in ".$item['fixed_in']." -->";}
+                        if (version_compare($version, $item['fixed_in'], '>=')) {
+                            if ($debug) {echo "<!-- FIXED -->";}
+                            // 1.0.0: fix to handle multiple items
+                            unset($report[$type][$itemname][$i]); $changed = true;
+                            if (count($report[$type][$itemname]) == 0) {
+                                unset($report[$type][$itemname]); $skip = true;
+                            }
                         } else {
-                            // 0.9.9: removed mismatched hasPackage check
-                            // TODO: add real check if plugin update available
-                            $updateurl = add_query_arg('action', 'upgrade-plugin', admin_url('update.php'));
-                            $updateurl = add_query_arg('plugin', urlencode($name), $updateurl);
-                            $updateurl = wp_nonce_url($updateurl, 'upgrade-plugin_'.$name);    
+                            // --- clear dismissed updates and force update check ---
+                            delete_site_option('dismissed_update_core');
+                            delete_site_transient('update_core');
+                            $updates = get_core_updates();
+                            if (!isset($updates[0]->response) || 'latest' == $updates[0]->response) {
+                                // well that is strange, no core update is available yet
+                            } else {$updateurl = admin_url('update-core.php');}
                         }
-                    }
-                }
-            } elseif ($type == 'themes') {
-                foreach ($themes as $name => $details) {
-                    if ($name == $itemname) {
-                        $displayname = $details['Name'];
-                        $version = $details['Version'];
-                        // 0.9.9: fix to version compare clearing updated items
-                        if (version_compare($version, $item['fixed_in'], '<')) {
-                            unset($report[$type][$itemname]); $changed = $skip = true;
-                        } else {
-                            // 0.9.9: removed mismatched hasPackage check
-                            // TODO: add real check if theme update available
-                            $updateurl = add_query_arg('action', 'upgrade-theme', admin_url('update.php'));
-                            $updateurl = add_query_arg('theme', urlencode($name), $updateurl);
-                            $updateurl = wp_nonce_url($updateurl, 'upgrade-theme_'.$name);    
+                    } elseif ($type == 'plugins') {
+                        foreach ($plugins as $name => $details) {
+                            if ($name == $itemname) {
+                                $displayname = $details['Name'];
+                                $version = $details['Version'];
+                                // 0.9.9: fix to version compare clearing updated items
+                                // 1.0.0: fix again for when version equals fixed version
+                                if ($debug) {echo "<!-- Plugin: ".$displayname." - ".$version." - Fixed in ".$item['fixed_in']." -->";}
+                                if (version_compare($version, $item['fixed_in'], '>=')) {
+                                    if ($debug) {echo "<!-- FIXED -->";}
+                                    // 1.0.0: fix to handle multiple items
+                                    unset($report[$type][$itemname][$i]); $changed = true;
+                                    if (count($report[$type][$itemname]) == 0) {
+                                        unset($report[$type][$itemname]); $skip = true;
+                                    }
+                                } else {
+                                    // 0.9.9: removed mismatched hasPackage check
+                                    // TODO: add real check if plugin update available
+                                    $updateurl = add_query_arg('action', 'upgrade-plugin', admin_url('update.php'));
+                                    $updateurl = add_query_arg('plugin', urlencode($name), $updateurl);
+                                    $updateurl = wp_nonce_url($updateurl, 'upgrade-plugin_'.$name);    
+                                }
+                            }
+                        }
+                    } elseif ($type == 'themes') {
+                        foreach ($themes as $name => $details) {
+                            if ($name == $itemname) {
+                                $displayname = $details['Name'];
+                                $version = $details['Version'];
+                                // 0.9.9: fix to version compare clearing updated items
+                                // 1.0.0: fix again for when version equals fixed version
+                                if ($debug) {echo "<!-- Theme: ".$displayname." - ".$version." - Fixed in ".$item['fixed_in']." -->";}
+                                if (version_compare($version, $item['fixed_in'], '>=')) {
+                                    if ($debug) {echo "<!-- FIXED -->";}
+                                    // 1.0.0: fix to handle multiple items
+                                    unset($report[$type][$itemname][$i]); $changed = true;
+                                    if (count($report[$type][$itemname]) == 0) {
+                                        unset($report[$type][$itemname]); $skip = true;
+                                    }
+                                } else {
+                                    // 0.9.9: removed mismatched hasPackage check
+                                    // TODO: add real check if theme update available
+                                    $updateurl = add_query_arg('action', 'upgrade-theme', admin_url('update.php'));
+                                    $updateurl = add_query_arg('theme', urlencode($name), $updateurl);
+                                    $updateurl = wp_nonce_url($updateurl, 'upgrade-theme_'.$name);    
+                                }
+                            }
                         }
                     }
                 }
             }
-        } else {$skip = true;}
+        } else {
+            // --- remove missing resource from check list ---
+            unset($report[$type][$itemname]); 
+            $changed = $skip = true;
+        }
+        // 1.0.0: fix to set updated items array for current loop
+        if (isset($report[$type][$itemname])) {$items = $report[$type][$itemname];}
 
         // --- maybe skip if removed ---
         if (!$skip) {
 
             // --- check if items specified for matching ---
+            // 1.0.0: fix for matchitems (duplicate variable name items)
             $add = false;
-            if (is_null($items)) {$add = true;}
+            if (is_null($matchitems)) {$add = true;}
             else {
                 // --- match current item with passed items ---
-                foreach ($items as $newitem) {
-                    if ($item['id'] == $newitem['id']) {$add = true;}
+                foreach ($matchitems as $matchitem) {
+                    if ($item['id'] == $matchitem['id']) {$add = true;}
                 }
             }
 
@@ -702,7 +732,7 @@ function forcefield_vulnerabilities_list($type, $items=null) {
                 // 0.9.9: allow for listing of multiple vulnerabilities 
                 $links = $fixed = $icons = $sinces = '';
                 $textttitles = $texturls = '';
-                foreach ($item as $details) {
+                foreach ($items as $details) {
 
                     // --- linked vulnerability titles ---
                     $linkurl = "https://wpvulndb.com/vulnerabilities/".$details['id'];
@@ -726,22 +756,27 @@ function forcefield_vulnerabilities_list($type, $items=null) {
                 }
 
                 // --- set HTML list ---
+                // 1.0.0: top align plugin title and add max-widths
                 $html = '<tr id="ff-vuln-id-'.esc_attr($item['id']).'">';
                     $html .= '<td>'.$icons.'</td>';
-                    $html .= '<td>'.esc_html($displayname)."</td>";
-                    $html .= '<td>'.$links.'</td>';
+                    $html .= '<td style="vertical-align:top;max-width:150px;">'.esc_html($displayname)."</td>";
+                    $html .= '<td style="max-width:400px;">'.$links.'</td>';
                     $html .= '<td>'.$fixed.'</td>';
                     $html .= '<td><span style="color:#d50000;">'.esc_attr(__('Installed Version','forcefield')).": ".esc_attr($version)."</span></td>";
                     if ($updateurl) {
                         $html .= "<td><a href='".$updateurl."'>";
-                            // 0.9.9: converted link to button
-                            $html .= "<input type='button' class='button-secondary' value='".esc_attr(__('Update Now','forcefield'))."'>";
+                            // 0.9.9: converted update link to button
+                            // 1.0.0: use different button class and value for core update
+                            if ($type == 'core') {$buttonclass = 'button-primary'; $update = esc_attr(__('Upgrades Page','forcefield'));}
+                            else {$buttonclass = 'button-secondary'; $update = esc_attr(__('Update Now','forcefield'));}
+                            $html .= "<input type='button' class='".$buttonclass."' value='".$update."'>";
                         $html .= "</a></td>";
                     } else {$html .= "<td></td>";}
                     if ( ($type == 'plugins') || ($type == 'themes') ) {
                         // 0.9.9: only add checkbox if more than one vulnerability
+                        // 1.0.0: fix to value variable (use itemname instead of name)
                         if ($itemcount > 1) {
-                            $html .= "<td><input type='checkbox' name='checked[]' value='".esc_attr($name)."' checked='checked'></td>";
+                            $html .= "<td><input type='checkbox' name='checked[]' value='".esc_attr($itemname)."' checked='checked'></td>";
                         } else {$html .= "<td></td>";}
                     } else {$html .= "<td></td>";}
                     // 0.9.9: added notice dismissal button
@@ -802,7 +837,7 @@ function forcefield_vulnerability_notice() {
             $output .= "<tr>";
                 $output .= "<td colspan='8' style='font-size:18px;'>";
                 $output .= "<b><span style='color:#d50000;'>".esc_attr(__('Warning!','forcefield'))."</span> ";
-                    $output .= esc_attr(__('Core Vulnerabilities','forcefield'))."</b>";
+                    $output .= esc_attr(__('Core Vulnerabilities Found!','forcefield'))."</b>";
                 $output .= "</td>";
             $output .= "</tr>";
 
@@ -824,19 +859,19 @@ function forcefield_vulnerability_notice() {
             $output .= "<div id='ff-plugin-vulnerabilities'>";
 
             // --- update selected themes form ---
-            $nonce = wp_create_nonce('bulk-update-plugins');
-            $output .= "<form id='ff-plugin-form' action='".esc_url(admin_url('update.php'))."'>";
+            // 1.0.0: change to action URL (frmo update.php), nonce, action and post method
+            $nonce = wp_create_nonce('upgrade-core');
+            $output .= "<form id='ff-plugin-form' action='".esc_url(admin_url('update-core.php?action=do-plugin-upgrade'))."' method='post'>";
             $output .= "<input type='hidden' name='_wpnonce' value='".$nonce."'>";
-            $output .= "<input type='hidden' id='ff-plugin-action' name='action' value='update-selected'>";
             
-            // --- theme list table header row ---
+            // --- plugin list table header row ---
             $output .= "<table cellspacing='10'>";
             $output .= "<tr>";
                 $output .= "<td colspan='5' style='font-size:18px;'>";
                     $output .= "<b><span style='color:#d50000;'>".esc_attr(__('Warning!','forcefield'))."</span> ";
                     $output .= "ForceField ".esc_attr(__('has detected','forcefield'))." ";
                     if ($pluginlist['count'] > 1) {
-                        $output .= esc_attr(__('Plugin Vulnerabilities','forcefield'))."</b>";
+                        $output .= esc_attr(__('Plugin Vulnerabilities','forcefield'))."</b> ";
                         $output .= esc_attr(sprintf(__('in %d Plugins','forcefield'), $pluginlist['count']))."!</b>";
                     } else {$output .= esc_attr(__('a Plugin Vulnerability','forcefield'))."</b>";}
                 $output .= "</td><td colspan='3'>";
@@ -865,10 +900,10 @@ function forcefield_vulnerability_notice() {
             $output .= "<div id='ff-theme-vulnerabilities'>";
 
             // --- update selected themes form ---
-            $nonce = wp_create_nonce('bulk-update-themes');
-            $output .= "<form id='ff-theme-form' action='".esc_url(admin_url('update.php'))."'>";
+            // 1.0.0: add form method post
+            $nonce = wp_create_nonce('update-core');
+            $output .= "<form id='ff-theme-form' action='".esc_url(admin_url('update-core.php?action=do-theme-upgrade'))."' method='post'>";
             $output .= "<input type='hidden' name='_wpnonce' value='".$nonce."'>";
-            $output .= "<input type='hidden' id='ff-theme-action' name='action' value='update-selected-themes'>";
             
             // --- theme list table header row ---
             $output .= "<table cellspacing='10'>";
@@ -877,8 +912,8 @@ function forcefield_vulnerability_notice() {
                     $output .= "<b><span style='color:#d50000;'>".esc_attr(__('Warning!','forcefield'))."</span> ";
                     $output .= "ForceField ".esc_attr(__('has detected','forcefield'))." ";
                     if (count($themelist['count']) > 1) {
-                        $output .= esc_attr(__('Theme Vulnerabilities','forcefield'));
-                        $output .= esc_attr(sprintf(__('in %d Themes','forcefield'), $themelist['count']))."!</b>";
+                        $output .= esc_attr(__('Theme Vulnerabilities','forcefield'))."</b> ";
+                        $output .= esc_attr(sprintf(__('in %d Themes','forcefield'), $themelist['count']))."!";
                     } else {$output .= esc_attr(__('a Theme Vulnerability','forcefield'))."</b>";}
                 $output .= "</td><td colspan='3'>";
                 // 0.9.9: only show button if more than one vulnerability
