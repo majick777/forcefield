@@ -4,6 +4,9 @@
 // === ForceField APIs Module ===
 // ==============================
 
+// === Application Passwords ===
+// - maybe Disable Application Passwords
+
 // === XML RPC ===
 // - maybe Disable XML RPC Entirely
 // - maybe Disable XML RPC Authenticated Methods
@@ -22,6 +25,23 @@
 // - maybe disable REST API Anonymous Commenting
 
 
+// -----------------------------
+// === Application Passwords ===
+// -----------------------------
+
+// -----------------------------------
+// maybe Disable Application Passwords
+// -----------------------------------
+// 1.0.1: added for WP 5.6+ Application Passwords feature
+add_filter( 'wp_is_application_passwords_available', 'forcefield_app_passwords_disable' );
+function forcefield_app_passwords_disable( $enabled ) {
+	if ( 'yes' == forcefield_get_setting( 'app_passwords_disable' ) ) {
+		$enabled = false;
+	}
+	return $enabled;
+}
+
+
 // ---------------
 // === XML RPC ===
 // ---------------
@@ -35,10 +55,12 @@
 // ------------------------------
 // maybe Disable XML RPC Entirely
 // ------------------------------
-add_filter('xmlrpc_methods', 'forcefield_xmlrpc_disable');
-function forcefield_xmlrpc_disable($methods) {
-	$disable = forcefield_get_setting('xmlrpc_disable');
-	if ($disable == 'yes') {$methods = array();}
+add_filter( 'xmlrpc_methods', 'forcefield_xmlrpc_disable' );
+function forcefield_xmlrpc_disable( $methods ) {
+	$disable = forcefield_get_setting( 'xmlrpc_disable' );
+	if ( 'yes' == $disable ) {
+		$methods = array();
+	}
 	return $methods;
 }
 
@@ -47,24 +69,41 @@ function forcefield_xmlrpc_disable($methods) {
 // -------------------------------------------
 // note: this enable filter is for authenticated methods *only*
 // as it is triggered by the login method of XML RPC server
-add_filter('xmlrpc_enabled', 'forcefield_xmlrpc_disable_auth');
+add_filter( 'xmlrpc_enabled', 'forcefield_xmlrpc_disable_auth' );
 function forcefield_xmlrpc_disable_auth($enabled) {
 	$disable = forcefield_get_setting('xmlrpc_noauth');
-	if ($disable == 'yes') {$enabled = false;}
+	if ( 'yes' == $disable ) {
+		$enabled = false;
+	}
 	return $enabled;
 }
 
 // ----------------------------
 // maybe Slowdown XML RPC Calls
 // ----------------------------
-add_filter('xmlrpc_enabled', 'forcefield_xmlrpc_slowdown');
-add_filter('xmlrpc_login_error', 'forcefield_xmlrpc_slowdown');
-function forcefield_xmlrpc_slowdown($arg) {
-	$slowdown = forcefield_get_setting('xmlrpc_slowdown');
-	if ($slowdown == 'yes') {
-		static $xmlrpc_calls = 0; $xmlrpc_calls++;
-		$rand = function_exists('mt_rand') ? 'mt_rand' : 'rand';
-		usleep(call_user_func($rand, 500000 * $xmlrpc_calls, 2000000 * $xmlrpc_calls));
+// add_filter( 'xmlrpc_enabled', 'forcefield_xmlrpc_slowdown' );
+add_filter( 'xmlrpc_login_error', 'forcefield_xmlrpc_slowdown' );
+function forcefield_xmlrpc_slowdown( $arg ) {
+	$slowdown = forcefield_get_setting( 'xmlrpc_slowdown' );
+	if ( 'yes' == $slowdown ) {
+		global $forcefield_data;
+		if ( !isset( $forcefield_data ) ) {
+			$forcefield_data = array();
+		}
+		if ( !isset( $forcefield_data['xmlrpc_calls'] ) ) {
+			$forcefield_data['xmlrpc_calls'] = 0;
+			return $arg;
+		} else {
+			$forcefield_data['xmlrpc_calls']++;
+		}
+		$min = $forcefield_data['xmlrpc_calls'] * 500000;
+		$max = $forcefield_data['xmlrpc_calls'] * 2000000;
+		if ( function_exists( 'mt_rand' ) ) {
+			$sleep = mt_rand( $min, $max );
+		} else {
+			$sleep = rand( $min, $max );
+		}
+		usleep( $sleep );
 	}
 	return $arg;
 }
@@ -72,25 +111,29 @@ function forcefield_xmlrpc_slowdown($arg) {
 // -------------------------------
 // maybe Remove XML RPC Link (RSD)
 // -------------------------------
-add_action('plugins_loaded', 'forcefield_remove_rsd_link');
+add_action( 'plugins_loaded', 'forcefield_remove_rsd_link' );
 function forcefield_remove_rsd_link() {
-	if (defined('XMLRPC_REQUEST') && XMLRPC_REQUEST) {
-		$disable = forcefield_get_setting('xmlrpc_disable');
-		if ($disable == 'yes') {remove_action('wp_head', 'rsd_link');}
-	}
+	// if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
+		$disable = forcefield_get_setting( 'xmlrpc_disable' );
+		if ( 'yes' == $disable ) {
+			remove_action( 'wp_head', 'rsd_link' );
+		}
+	// }
 }
 
 // -----------------------------
 // maybe Disable XML RPC Methods
 // -----------------------------
-add_filter('xmlrpc_methods', 'forcefield_xmlrpc_methods', 9);
-function forcefield_xmlrpc_methods($methods) {
+add_filter( 'xmlrpc_methods', 'forcefield_xmlrpc_methods', 9 );
+function forcefield_xmlrpc_methods( $methods ) {
 	// --- maybe disable pingbacks ---
-	$disable = forcefield_get_setting('xmlrpc_nopingbacks');
-	if ($disable == 'yes') {
-		if (isset($methods['pingback.ping'])) {unset($methods['pingback.ping']);}
-		if (isset($methods['pingback.extensions.getPingbacks'])) {
-			unset($methods['pingback.extensions.getPingbacks']);
+	$disable = forcefield_get_setting( 'xmlrpc_nopingbacks' );
+	if ( 'yes' == $disable ) {
+		if ( isset( $methods['pingback.ping'] ) ) {
+			unset($methods['pingback.ping']);
+		}
+		if ( isset( $methods['pingback.extensions.getPingbacks'] ) ) {
+			unset( $methods['pingback.extensions.getPingbacks'] );
 		}
 	}
 	return $methods;
@@ -99,23 +142,30 @@ function forcefield_xmlrpc_methods($methods) {
 // ------------------------------------
 // maybe Remove XML RPC Pingback Header
 // ------------------------------------
-add_filter('wp_headers', 'forcefield_remove_pingback_header');
-function forcefield_remove_pingback_header($headers) {
-	$disable = forcefield_get_setting('xmlrpc_nopingbacks');
-	if ($disable == 'yes') {unset($headers['X-Pingback']);}
+add_filter( 'wp_headers', 'forcefield_remove_pingback_header' );
+function forcefield_remove_pingback_header( $headers ) {
+	$disable = forcefield_get_setting( 'xmlrpc_nopingbacks' );
+	if ( 'yes' == $disable ) {
+		unset( $headers['X-Pingback'] );
+	}
 	return $headers;
 }
 
 // ------------------------
 // maybe Disable Self Pings
 // ------------------------
-add_action('pre_ping', 'forcefield_disable_self_pings');
-function forcefield_disable_self_pings($links) {
-	$disable = forcefield_get_setting('xmlrpc_noselfpings');
-	if ($disable == 'yes') {
+add_action( 'pre_ping', 'forcefield_disable_self_pings' );
+function forcefield_disable_self_pings( $links ) {
+	$disable = forcefield_get_setting( 'xmlrpc_noselfpings' );
+	if ( 'yes' == $disable ) {
 		$home = home_url();
-		foreach ($links as $i => $link) {
-			if (0 === strpos($link, $home)) {unset($links[$i]);}
+		// 1.0.1: added extra check for links array
+		if ( is_array( $links) && ( count( $links ) > 0 ) ) {
+			foreach ( $links as $i => $link ) {
+				if (0 === strpos( $link, $home ) ) {
+					unset( $links[$i] );
+				}
+			}
 		}
 	}
 	return $links;
@@ -124,10 +174,12 @@ function forcefield_disable_self_pings($links) {
 // ----------------------------------------------
 // maybe disable Anonymous Commenting via XML RPC
 // ----------------------------------------------
-add_filter('xmlrpc_allow_anonymous_comments', 'forcefield_xmlrpc_anonymous_comments');
-function forcefield_xmlrpc_anonymous_comments($allow) {
-	$allowanon = forcefield_get_setting('xmlrpc_anoncomments');
-	if ($allowanon != 'yes') {$allow = false;}
+add_filter( 'xmlrpc_allow_anonymous_comments', 'forcefield_xmlrpc_anonymous_comments' );
+function forcefield_xmlrpc_anonymous_comments( $allow ) {
+	$allowanon = forcefield_get_setting( 'xmlrpc_anoncomments' );
+	if ( 'yes' != $allowanon ) {
+		$allow = false;
+	}
 	return $allow;
 }
 
@@ -145,71 +197,83 @@ function forcefield_xmlrpc_anonymous_comments($allow) {
 // -------------------------------
 // maybe Disable/Restrict REST API
 // -------------------------------
-add_filter('rest_authentication_errors', 'forcefield_restapi_access', 11);
+add_filter( 'rest_authentication_errors', 'forcefield_restapi_access', 11 );
 function forcefield_restapi_access($access) {
 
 	// --- check whitelist and blacklist ---
 	// 0.9.2: added whitelist and blacklist checks
-	if (forcefield_whitelist_check('apis')) {return $access;}
-	if (forcefield_blacklist_check('apis')) {forcefield_forbidden_exit();}
+	if ( forcefield_whitelist_check( 'apis' ) ) {
+		return $access;
+	}
+	if ( forcefield_blacklist_check( 'apis' ) ) {
+		forcefield_forbidden_exit();
+	}
 
 	// --- maybe disabled REST API ---
-	$restapidisable = forcefield_get_setting('restapi_disable');
-	if ($restapidisable == 'yes') {
-		$errormessage = __('The REST API is disabled.','forcefield');
+	$restapidisable = forcefield_get_setting( 'restapi_disable' );
+	if ( 'yes' == $restapidisable ) {
+		$errormessage = __( 'The REST API is disabled.', 'forcefield' );
 		$status = 405; // HTTP 405: Method Not Allowed
-		return forcefield_filtered_error('rest_disabled', $errormessage, 405);
+		return forcefield_filtered_error( 'rest_disabled', $errormessage, 405 );
 	}
 
 	// --- maybe SSL connection required ---
-	$requiressl = forcefield_get_setting('restapi_requiressl');
+	$requiressl = forcefield_get_setting( 'restapi_requiressl' );
 	// 0.9.8: honour require SSL constant override
-	if (defined('FORCEFIELD_REQUIRE_SSL')) {
-		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	if ( defined('FORCEFIELD_REQUIRE_SSL' ) ) {
+		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
+			$requiressl = 'yes';
+		} else {
+			$requiressl = '';
+		}
 	}
-	if ( ($requiressl == 'yes') && !is_ssl()) {
-		$errormessage = __('SSL connection is required to access the REST API.','forcefield');
+	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+		$errormessage = __( 'SSL connection is required to access the REST API.', 'forcefield' );
 		$status = 403; // HTTP 403: Forbidden
-		return forcefield_filtered_error('rest_ssl_required', $errormessage, $status);
+		return forcefield_filtered_error( 'rest_ssl_required', $errormessage, $status );
 	}
 
 	// --- maybe authenticated (logged in) users only ---
-	$requireauth == forcefield_get_setting('restapi_authonly');
-    if ( ($requireauth == 'yes') && !is_user_logged_in()) {
+	$requireauth == forcefield_get_setting( 'restapi_authonly' );
+    if ( ( 'yes' == $requireauth ) && !is_user_logged_in() ) {
     	$status = rest_authorization_required_code();
-    	$errormessage = __('You need to be logged in to access the REST API.','forcefield');
-		return forcefield_filtered_error('rest_not_logged_in', $errormessage, $status);
+    	$errormessage = __( 'You need to be logged in to access the REST API.', 'forcefield' );
+		return forcefield_filtered_error( 'rest_not_logged_in', $errormessage, $status );
     }
 
 	// --- handle role restrictions ---
 	// 0.9.1: add role restricted REST API access
-	$restricted = forcefield_get_setting('restapi_restricted');
-	if ($restricted == 'yes') {
-		if (!is_user_logged_in()) {
+	$restricted = forcefield_get_setting( 'restapi_restricted' );
+	if ( 'yes' == $restricted ) {
+		if ( !is_user_logged_in() ) {
 			// --- (enforced) logged in only message ---
 			$status = rest_authorization_required_code();
-			$errormessage = __('You need to be logged in to access the REST API.','forcefield');
-			return forcefield_filtered_error('rest_not_logged_in', $errormessage,  $status);
+			$errormessage = __( 'You need to be logged in to access the REST API.','forcefield' );
+			return forcefield_filtered_error( 'rest_not_logged_in', $errormessage,  $status );
     	} else {
 
     		// --- check blocked user roles ---
     		// 0.9.1: check multiple roles to maybe allow access
-    		$allowedroles = forcefield_get_setting('restapi_roles');
-    		if (!is_array($allowedroles)) {$allowedroles = array();}
+    		$allowedroles = forcefield_get_setting( 'restapi_roles' );
+    		if ( !is_array( $allowedroles ) ) {
+    			$allowedroles = array();
+    		}
     		$user = wp_get_current_user();
     		$userroles = $user->roles;
     		$block = true;
 
-    		if (count($userroles) > 0) {
-	    		foreach ($userroles as $role) {
-	    			if (in_array($role, $allowedroles)) {$block = false;}
+    		if ( count( $userroles ) > 0 ) {
+	    		foreach ( $userroles as $role ) {
+	    			if ( in_array( $role, $allowedroles ) ) {
+	    				$block = false;
+	    			}
 	    		}
 	    	}
 
-			if (isset($block) && $block) {
+			if ( $block ) {
 				$status = rest_authorization_required_code();
-				$errormessage = __('Access to the REST API is restricted.','forcefield');
-				return forcefield_filtered_error('rest_restricted', $errormessage, $status);
+				$errormessage = __( 'Access to the REST API is restricted.', 'forcefield' );
+				return forcefield_filtered_error( 'rest_restricted', $errormessage, $status );
 			}
     	}
     }
@@ -220,14 +284,29 @@ function forcefield_restapi_access($access) {
 // -----------------------------
 // maybe Slowdown REST API Calls
 // -----------------------------
-add_filter('rest_jsonp_enabled', 'forcefield_restapi_slowdown');
-add_filter('rest_authentication_errors', 'forcefield_restapi_slowdown');
-function forcefield_restapi_slowdown($arg) {
-	$slowdown = forcefield_get_setting('restapi_slowdown');
-	if ($slowdown == 'yes') {
-		static $restapi_calls = 0; $restapi_calls++;
-		$rand = function_exists('mt_rand') ? 'mt_rand' : 'rand';
-		usleep(call_user_func($rand, 500000 * $restapi_calls, 2000000 * $restapi_calls));
+// add_filter( 'rest_jsonp_enabled', 'forcefield_restapi_slowdown' );
+add_filter( 'rest_authentication_errors', 'forcefield_restapi_slowdown' );
+function forcefield_restapi_slowdown( $arg ) {
+	$slowdown = forcefield_get_setting( 'restapi_slowdown' );
+	if ( 'yes' == $slowdown ) {
+		global $forcefield_data;
+		if ( !isset( $forcefield_data ) ) {
+			$forcefield_data = array();
+		}
+		if ( !isset( $forcefield_data['restapi_calls'] ) ) {
+			$forcefield_data['restapi_calls'] = 0;
+			return $arg;
+		} else {
+			$forcefield_data['restapi_calls']++;
+		}
+		$min = $forcefield_data['restapi_calls'] * 500000;
+		$max = $forcefield_data['restapi_calls'] * 2000000;
+		if ( function_exists( 'mt_rand' ) ) {
+			$sleep = mt_rand( $min, $max );
+		} else {
+			$sleep = rand( $min, $max );
+		}
+		usleep( $sleep );
 	}
 	return $arg;
 }
@@ -237,21 +316,23 @@ function forcefield_restapi_slowdown($arg) {
 // --------------------------
 add_action('plugins_loaded', 'forcefield_remove_restapi_info');
 function forcefield_remove_restapi_info() {
-	$nolinks = forcefield_get_setting('restapi_nolinks');
-	if ($nolinks == 'yes') {
-		remove_action('xmlrpc_rsd_apis', 'rest_output_rsd');
-		remove_action('wp_head', 'rest_output_link_wp_head', 10);
-		remove_action('template_redirect', 'rest_output_link_header', 11);
+	$nolinks = forcefield_get_setting( 'restapi_nolinks' );
+	if ( 'yes' == $nolinks ) {
+		remove_action( 'xmlrpc_rsd_apis', 'rest_output_rsd' );
+		remove_action( 'wp_head', 'rest_output_link_wp_head', 10 );
+		remove_action( 'template_redirect', 'rest_output_link_header', 11 );
 	}
 }
 
 // ------------------------
 // maybe Disable REST JSONP
 // ------------------------
-add_filter('rest_jsonp_enabled', 'forcefield_jsonp_disable');
-function forcefield_jsonp_disable($enabled) {
-	$nojsonp = forcefield_get_setting('restapi_nojsonp');
-	if ($nojsonp == 'yes') {return false;}
+add_filter( 'rest_jsonp_enabled', 'forcefield_jsonp_disable' );
+function forcefield_jsonp_disable( $enabled ) {
+	$nojsonp = forcefield_get_setting( 'restapi_nojsonp' );
+	if ( 'yes' == $nojsonp ) {
+		return false;
+	}
 	return $enabled;
 }
 
@@ -259,7 +340,7 @@ function forcefield_jsonp_disable($enabled) {
 // maybe Change REST API Prefix
 // ----------------------------
 // [Deprecated] for example reference only
-// 0.9.7: removed as this filter is better hard-coded in mu-plugins
+// 0.9.7: removed as this filter is better hard-coded manually
 // note: default is "wp-json"
 // add_filter('rest_url_prefix', 'forcefield_restapi_prefix', 100);
 // function forcefield_restapi_prefix($prefix) {
@@ -271,11 +352,15 @@ function forcefield_jsonp_disable($enabled) {
 // ---------------------------------------
 // maybe Disable User Enumeration Endpoint
 // ---------------------------------------
-add_filter('rest_endpoints', 'forcefield_endpoint_restriction', 99);
-function forcefield_endpoint_restriction($endpoints) {
-	if (forcefield_get_setting('restapi_nouserlist') == 'yes') {
-		if (isset($endpoints['/wp/v2/users'])) {unset($endpoints['/wp/v2/users']);}
-		if (isset($endpoints['/wp/v2/users/(?P<id>[\d]+)'] ) ) {unset($endpoints['/wp/v2/users/(?P<id>[\d]+)']);}
+add_filter( 'rest_endpoints', 'forcefield_endpoint_restriction', 99 );
+function forcefield_endpoint_restriction( $endpoints ) {
+	if ( 'yes' == forcefield_get_setting( 'restapi_nouserlist' ) ) {
+		if ( isset( $endpoints['/wp/v2/users'] ) ) {
+			unset( $endpoints['/wp/v2/users'] );
+		}
+		if ( isset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] ) ) {
+			unset( $endpoints['/wp/v2/users/(?P<id>[\d]+)'] );
+		}
  	}
     return $endpoints;
 }
@@ -283,10 +368,12 @@ function forcefield_endpoint_restriction($endpoints) {
 // -------------------------------------------
 // maybe disable REST API Anonymous Commenting
 // -------------------------------------------
-add_filter('rest_allow_anonymous_comments', 'forcefield_restapi_anonymous_comments');
+add_filter( 'rest_allow_anonymous_comments', 'forcefield_restapi_anonymous_comments' );
 function forcefield_restapi_anonymous_comments($allow) {
-	$allowanon = forcefield_get_setting('restapi_anoncomments');
-	if ($allowanon != 'yes') {$allow = false;}
+	$allowanon = forcefield_get_setting( 'restapi_anoncomments' );
+	if ( 'yes' != $allowanon ) {
+		$allow = false;
+	}
 	return $allow;
 }
 
@@ -316,3 +403,4 @@ function forcefield_restapi_anonymous_comments($allow) {
 //	}
 //	return $access;
 // }
+
