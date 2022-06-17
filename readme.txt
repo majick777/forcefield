@@ -44,7 +44,7 @@ ForceField also records access to user actions missing referer headers, missing 
 
 **Vulnerability Check**
 
-Checks your installed core, plugins and themes for known vulnerabilities, according to the frequency you set for each. Then sends email alerts and provides an Admin Notice for any new vulnerabilities when they found, giving you a heads up on updates that require action. (Note: This feature is complete but currently being retested more extensively before being included in the plugin in an upcoming version. If you wish to test it out yourself beforehand, you can download the plugin from [Github repository][https://github.com/majick777/forcefield/].)
+Checks your installed core, plugins and themes for known vulnerabilities, according to the frequency you set for each. Then sends email alerts and provides an Admin Notice for any new vulnerabilities when they found, giving you a heads up on updates that require action. (Note: This feature is complete but currently being retested more extensively before being included in the plugin in an upcoming version. If you wish to test it out yourself beforehand, you can download the plugin from [Github repository](https://github.com/majick777/forcefield/).)
 
 
 [ForceField Home](https://wordquest.org/plugins/forcefield/)
@@ -66,6 +66,12 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 
 
 == Changelog ==
+
+= 1.0.2 =
+* Updated: Freemius SDK (2.4.3)
+* Updated: Plugin Panel (1.2.3)
+* Updated: WordQuest Helper (1.7.9)
+* Moved: Blocklist options from General to Blocklist tab
 
 = 1.0.1 =
 * Updated: Freemius SDK (2.4.1)

@@ -198,7 +198,7 @@ function forcefield_xmlrpc_anonymous_comments( $allow ) {
 // maybe Disable/Restrict REST API
 // -------------------------------
 add_filter( 'rest_authentication_errors', 'forcefield_restapi_access', 11 );
-function forcefield_restapi_access($access) {
+function forcefield_restapi_access( $access ) {
 
 	// --- check whitelist and blacklist ---
 	// 0.9.2: added whitelist and blacklist checks
@@ -221,11 +221,8 @@ function forcefield_restapi_access($access) {
 	$requiressl = forcefield_get_setting( 'restapi_requiressl' );
 	// 0.9.8: honour require SSL constant override
 	if ( defined('FORCEFIELD_REQUIRE_SSL' ) ) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+		// 1.0.2: simplified check logic
+		$requiressl = ( FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
 		$errormessage = __( 'SSL connection is required to access the REST API.', 'forcefield' );

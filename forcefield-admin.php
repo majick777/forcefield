@@ -17,12 +17,14 @@ function forcefield_admin_page() {
 	$settings = $forcefield;
 
 	// --- manual debug for settings ---
-	echo "<!-- ForceField Settings: " . PHP_EOL . print_r( $forcefield, true ) . PHP_EOL . " -->";
+	// echo "<!-- ForceField Settings: " . PHP_EOL . print_r( $forcefield, true ) . PHP_EOL . " -->";
 
 	// --- get current setting tab ---
 	$currenttab = $forcefield['current_tab'];
 	if ( $currenttab == '' ) {
-		$currenttab = 'general';
+		// 1.0.2: default to user actions tab
+		// $currenttab = 'general';
+		$currenttab = 'user-actions';
 	}
 
 	// --- get all user roles ---
@@ -64,6 +66,10 @@ function forcefield_admin_page() {
 	// 0.9.6: use standard Plugin Page Header from Loader
 	forcefield_settings_header();
 
+	// --- Enqueue Settings Resources ---
+	// 1.0.2: added enqueueing of settings resources
+	forcefield_settings_resources( false, false );
+
 	// --- admin page styles ---
 	// 1.0.1: fix padding on tab buttons
 	// 1.0.1: remove focus outline on tab links
@@ -78,15 +84,19 @@ function forcefield_admin_page() {
 	.tab-link:focus {outline:none; box-shadow:none;}</style>";
 
 	// --- admin page scripts ---
+	// 1.0.2: added nonce for blocklist clear get action
+	$clearnonce = wp_create_nonce( 'forcefield-clear' );
 	$adminajax = admin_url( 'admin-ajax.php' );
 	$confirmreset = __( 'Are you sure you want to Reset to Default Settings?', 'forcefield' );
 	$confirmclear = __( 'Are you sure you want to Clear the Entire IP Blocklist?', 'forcefield' );
 
 	// 1.0.1: prefix javascript functions
+	// 1.0.2: temporarily remove general tab
+	// 1.0.2: use nonce in GET instead of POST on clear action
 	echo "<script>function forcefield_showtab(tab) {
 		document.getElementById('current-tab').value = tab;
 		/* console.log(document.getElementById('current-tab').value); */
-		document.getElementById('general').style.display = 'none';
+		/* document.getElementById('general').style.display = 'none'; */
 		document.getElementById('role-protect').style.display = 'none';
 		document.getElementById('user-actions').style.display = 'none';
 		document.getElementById('api-access').style.display = 'none';";
@@ -120,6 +130,8 @@ function forcefield_admin_page() {
 	function forcefield_blocklist_clear() {
 		var ask = '" . esc_js( $confirmclear ) . "'; agree = confirm(ask);
 		if (!agree) {return false;}
+		url = '" . esc_url( $adminajax ) . "?action=forcefield_blocklist_clear&nonce=" . esc_js( $clearnonce ) . "';
+		document.getElementById('blocklist-action-frame').src = url;
 	}
 	function forcefield_unblock_ip(ip, label, row) {
 		ip = encodeURIComponent(ip);
@@ -152,13 +164,13 @@ function forcefield_admin_page() {
 	echo '<ul style="list-style:none;">' . PHP_EOL;
 
 		// --- General ---
-		echo '<li style="display:inline-block;">' . PHP_EOL;
-		echo '<a href="javascript:void(0);" class="tab-link" onclick="forcefield_showtab(\'general\');" style="text-decoration:none;">' . PHP_EOL;
-		echo '<div id="general-button" class="tab-button"';
-		if ( 'general' == $currenttab ) {
-			echo ' style="background-color:#F0F0F0;"';
-		}
-		echo '>' . esc_html( __( 'General', 'forcefield' ) ) . '</div></a></li>' . PHP_EOL;
+		// echo '<li style="display:inline-block;">' . PHP_EOL;
+		// echo '<a href="javascript:void(0);" class="tab-link" onclick="forcefield_showtab(\'general\');" style="text-decoration:none;">' . PHP_EOL;
+		// echo '<div id="general-button" class="tab-button"';
+		// if ( 'general' == $currenttab ) {
+		//	echo ' style="background-color:#F0F0F0;"';
+		// }
+		// echo '>' . esc_html( __( 'General', 'forcefield' ) ) . '</div></a></li>' . PHP_EOL;
 
 		// --- User Actions ---
 		echo '<li style="display:inline-block;">' . PHP_EOL;
@@ -215,7 +227,7 @@ function forcefield_admin_page() {
 		if ( 'ip-blocklist' == $currenttab ) {
 			echo ' style="background-color:#F0F0F0;"';
 		}
-		echo '>' . esc_html( __( 'IP Blocklist', 'forcefield' ) ) . '</div></a></li>' . PHP_EOL;
+		echo '>' . esc_html( __( 'Blocklists', 'forcefield' ) ) . '</div></a></li>' . PHP_EOL;
 
 	echo '</ul>';
 
@@ -233,116 +245,16 @@ function forcefield_admin_page() {
 		// =======
 		// General
 		// =======
-		$hide = '';
-		if ( 'general' != $currenttab ) {
-			$hide = ' style="display:none;"';
-		}
-		echo '<div id="general"' . $hide . '><table>' . PHP_EOL;
-
-			// --- IP Lists ---
-			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Manual IP Lists', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
-
-			// --- IP Whitelist (textarea) ---
-			$ipwhitelist = forcefield_get_setting( 'blocklist_whitelist', false );
-			if ( is_array( $ipwhitelist ) ) {
-				$ipwhitelist = implode("\n", $ipwhitelist);
-			} else {
-				$ipwhitelist = '';
-			}
-			echo '<tr><td class="valigntop"><b>' . esc_html( __( 'Manual IP Whitelist', 'forcefield' ) ) . '</b></td><td width="20"></td>';
-			echo '<td colspan="3"><textarea class="ip-textarea" rows="4" name="ff_blocklist_whitelist">' . $ipwhitelist . '</textarea></td>';
-			echo '<td></td><td>' . esc_html( __( 'comma and/or line separated', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
-
-			// --- IP Blacklist (textarea) ---
-			echo '<tr height="10"><td> </td></tr>';
-			$ipblacklist = forcefield_get_setting( 'blocklist_blacklist', false );
-			if ( is_array( $ipblacklist ) ) {
-				$ipblacklist = implode("\n", $ipblacklist);
-			} else {
-				$ipblacklist = '';
-			}
-			echo '<tr><td class="valigntop"><b>' . esc_html( __('Manual IP Blacklist', 'forcefield' ) ) . '</b></td><td width="20"></td>';
-			echo '<td colspan="3"><textarea class="ip-textarea" rows="4" name="ff_blocklist_blacklist">' . $ipblacklist . '</textarea></td>';
-			echo '<td></td><td>' . esc_html( __( 'comma and/or line separated', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
-
-			// --- Blocklist Expiries ---
-			echo '<tr height="10"><td> </td></tr>';
-			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Blocklist Expiries', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
-
-			// --- token expiry time ---
-			echo '<tr><td><b>' . esc_html( __( 'Action Token Expiry', 'forcefield' ) ) . '</b></td><td width="20"></td>';
-			$expiry = forcefield_get_setting( 'blocklist_tokenexpiry', false );
-			echo '<td><input style="width:50px;" type="number" name="ff_blocklist_tokenexpiry" min="1" value="' . esc_attr( $expiry ) . '"></td>';
-			echo '<td width="10"></td>';
-			echo '<td>' . esc_html( __( 'Length of time that action tokens are valid.', 'forcefield' ) ) . '</td>';
-			echo '<td width="10"></td><td>(' . esc_html( __( 'default', 'forcefield' ) ) . ': 300s)</td></tr>' . PHP_EOL;
-
-			// --- blocklist expiry time (blocklist_cooldown) ---
-			echo '<tr><td class="valigntop"><b>' . esc_html(  __( 'Block Cooldown Time', 'forcefield' ) ) . '</b></td>';
-			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cooldown">';
-			echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
-			$cooldown = forcefield_get_setting( 'blocklist_cooldown', false );
-			foreach ( $intervals as $key => $interval ) {
-				$selected = '';
-				if ( $cooldown == $key ) {
-					$selected = ' selected="selected"';
-				}
-				echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
-				echo esc_html( $interval['display'] ) . '</option>';
-			}
-			echo '</select><div style="margin-left:20px; display:inline-block;">';
-			echo esc_html( __( 'How often trangressions are reduced over time.', 'forcefield' ) ) . '</div></td></tr>';
-
-			// --- blocklist expiry time (blocklist_expiry) ---
-			echo '<tr><td class="valigntop"><b>' . esc_html( __('Block Expiry Time', 'forcefield' ) ) . '</b></td>';
-			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_expiry">';
-			echo '<option value="none">' . esc_html( __('None', 'forcefield' ) ) . '</option>';
-			$expiry = forcefield_get_setting( 'blocklist_expiry', false );
-			foreach ( $intervals as $key => $interval ) {
-				$selected = '';
-				if ( $expiry == $key ) {
-					$selected = ' selected="selected"';
-				}
-				echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
-				echo esc_html( $interval['display'] ) . '</option>';
-			}
-			echo '</select><div style="margin-left:20px; display:inline-block;">';
-			echo esc_html( __( 'How long before an IP block expires.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
-
-			// --- blocklist delete time (blocklist_delete) ---
-			echo '<tr><td class="valigntop"><b>' . esc_html( __( 'Block Delete Time', 'forcefield' ) ) . '</b></td>';
-			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_delete">';
-			echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
-			$delete = forcefield_get_setting( 'blocklist_delete', false );
-			foreach ( $intervals as $key => $interval ) {
-				$selected = '';
-				if ( $delete == $key ) {
-					$selected = ' selected="selected"';
-				}
-				echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
-				echo esc_html( $interval['display'] ) . '</option>';
-			}
-			echo '</select><div style="margin-left:20px; display:inline-block;">';
-			echo esc_html( __( 'How long before an IP record is deleted.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
-
-			// --- blocklist cleanup frequency (blocklist_cleanups) ---
-			echo '<tr><td class="valigntop"><b>' . esc_html( __( 'CRON Cleanups', 'forcefield' ) ) . '</b></td>';
-			echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cleanups">';
-			echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
-			$cleanup = forcefield_get_setting( 'blocklist_cleanups', false );
-			foreach ( $intervals as $key => $interval ) {
-				$selected = '';
-				if ( $cleanup == $key ) {
-					$selected = ' selected="selected"';
-				}
-				echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
-				echo esc_html( $interval['display'] ) . '</option>';
-			}
-			echo '</select><div style="margin-left:20px; display:inline-block;">';
-			echo esc_html( __( 'How often blocklist cleanups are scheduled.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
+		// 1.0.2: move blocklist options moved to blocklist tab
+		// 1.0.2: temporarily remove general tab
+		// $hide = '';
+		// if ( 'general' != $currenttab ) {
+		// 	$hide = ' style="display:none;"';
+		// }
+		// echo '<div id="general"' . $hide . '><table>' . PHP_EOL;
 
 		// --- close general options tab ---
-		echo '</table></div>' . PHP_EOL;
+		// echo '</table></div>' . PHP_EOL;
 
 
 		// ============
@@ -427,7 +339,7 @@ function forcefield_admin_page() {
 			// -----
 			// Login
 			// -----
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Login', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Login', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 			// --- login referer check (login_norefblock) ---
 			echo '<tr><td><b>' . esc_html( __( 'Block if Missing HTTP Referer?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -482,7 +394,7 @@ function forcefield_admin_page() {
 			// ------------
 			// Registration
 			// ------------
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Registration', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Registration', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 			// --- registration referer check (register_norefblock) ---
 			echo '<tr><td><b>' . esc_html( __( 'Block if Missing HTTP Referer?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -529,7 +441,7 @@ function forcefield_admin_page() {
 			// -----------------------
 			// 0.9.5: added options for BuddyPress registration token
 			// 0.9.6: removed unnecesary ff_ prefix on get_settings calls
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'BuddyPress Registration', 'forcefield' ) ) . '</h3></td>';
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'BuddyPress Registration', 'forcefield' ) ) . '</h3></td>';
 			echo '<td> </td><td> </td><td> </td><td><b>' . esc_html( __( 'Affects BuddyPress Only', 'forcefield' ) ) . '</b></td></tr>' . PHP_EOL;
 
 			// --- registration referer check ---
@@ -575,7 +487,7 @@ function forcefield_admin_page() {
 			// -----------------------
 			// Blog Signup (Multisite)
 			// -----------------------
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Blog Signup', 'forcefield' ) ) . '</h3></td>';
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Blog Signup', 'forcefield' ) ) . '</h3></td>';
 			echo '<td> </td><td> </td><td> </td><td><b>' . esc_html( __( 'Affects Multisite Only', 'forcefield' ) ) . '</b></td></tr>';
 
 			// --- signup referer check (signup_norefblock) ---
@@ -621,7 +533,7 @@ function forcefield_admin_page() {
 			// ----------
 			// Commenting
 			// ----------
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Comments', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Comments', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 			// --- comment referer check (comment_norefblock) ---
 			echo '<tr><td><b>' . esc_html( __( 'Block if Missing HTTP Referer?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -666,7 +578,7 @@ function forcefield_admin_page() {
 			// -------------
 			// Lost Password
 			// -------------
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Lost Password', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Lost Password', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 			// --- lost password referer check (lostpass_norefblock) ---
 			echo '<tr><td><b>' . esc_html( __( 'Block if Missing HTTP Referer?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -733,7 +645,7 @@ function forcefield_admin_page() {
 
 			// Administrator Login
 			// -------------------
-			echo '<tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Administrator Protection', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Administrator Protection', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 			// --- admin login fail limit (admin_fail) ---
 			echo '<tr><td><b>' . esc_html( __( 'Failed Admin Login Limit', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -918,7 +830,7 @@ function forcefield_admin_page() {
 			// Application Passwords
 			// ---------------------
 			// 1.0.1: added application passwords setting
-			echo '<tr><td><h3 style="margin-bottom:10px;">Application Passwords</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">Application Passwords</h3></td></tr>' . PHP_EOL;
 			echo '<tr><td><b>' . esc_html( __( 'Disable Application Passwords?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
 			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_app_passwords_disable" value="yes"';
 			if ( 'yes' == forcefield_get_setting( 'app_passwords_disable', false ) ) {
@@ -933,7 +845,7 @@ function forcefield_admin_page() {
 			// -------
 
 			// --- table heading ---
-			echo '<tr><td><h3 style="margin-bottom:10px;">XML RPC</h3></td></tr>' . PHP_EOL;
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">XML RPC</h3></td></tr>' . PHP_EOL;
 
 			// --- disable XML RPC (xmlrpc_disable) ---
 			echo '<tr><td><b>' . esc_html( __( 'Disable XML RPC?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -1066,7 +978,7 @@ function forcefield_admin_page() {
 			// --------
 
 			// --- table heading ---
-			echo '<table><tr><td><h3 style="margin-bottom:10px;">REST API</h3></td></tr>' . PHP_EOL;
+			echo '<table><tr><td colspan="5"><h3 style="margin-bottom:10px;">REST API</h3></td></tr>' . PHP_EOL;
 
 			// --- disable REST API (restapi_disable) ---
 			echo '<tr><td><b>' . esc_html( __( 'Disable REST API?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
@@ -1196,10 +1108,10 @@ function forcefield_admin_page() {
 			if ( 'vuln-checker' != $currenttab ) {
 				$hide = ' style="display:none;"';
 			}
-			echo '<div id="vuln-checker"' . $hide . '><table>' . PHP_EOL;
+			echo '<div id="vuln-checker"' . $hide . '>' . PHP_EOL;
 
 				// --- table heading ---
-				echo '<table><tr><td><h3 style="margin-bottom:10px;">' . esc_html( __( 'Vulnerability Checker', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+				echo '<table><tr><td colspan="3"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Vulnerability Checker', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
 
 				// 1.0.1: add required message for API token key (for wpvulndb API v3)
 				echo '<tr><td colspan="3">' . esc_html( __( 'An API Key is required to use the Vulnerability Checker.', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
@@ -1315,34 +1227,6 @@ function forcefield_admin_page() {
 
 	// 0.9.6: removed auto updates options display
 
-	// Reset and Update Buttons
-	// ------------------------
-	echo '<div id="update-buttons"><br><table style="width:100%;">' . PHP_EOL;
-
-		// --- Reset Button ---
-		echo '<tr><td width="33%" style="text-align:right;">' . PHP_EOL;
-			// 0.9.7: fix to incorrect javascript function (returntodefaults)
-			// 0.9.8: change type from submit to button so enter = save
-			echo '<input type="button" value="' . esc_attr( __( 'Reset to Defaults', 'forcefield' ) ) . '" class="button-secondary" onclick="return forcefield_reset();" style="margin-right:20px;">' . PHP_EOL;
-
-		echo '</td>' . PHP_EOL;
-
-		// --- middle spacer ---
-		echo '<td width="33%"> </td>' . PHP_EOL;
-
-		// --- Update Submit Button ---
-		echo '<td width="33%" style="text-align:center;">' . PHP_EOL;
-			// 0.9.7: added missing ID tag for sidebar button trigger
-			echo '<input id="plugin-settings-save" type="submit" class="button-primary" value="' . esc_attr( __( 'Update Settings', 'forcefield' ) ) . '">' . PHP_EOL;
-		echo '</td></tr>' . PHP_EOL;
-
-	// --- close update buttons div ---
-	echo '</table><br></div>' . PHP_EOL;
-
-	// --- close main settings form ---
-	echo '</form>' . PHP_EOL;
-
-
 	// ============
 	// IP Blocklist
 	// ============
@@ -1353,7 +1237,116 @@ function forcefield_admin_page() {
 	}
 	echo '<div id="ip-blocklist" style="min-height:500px;' . $hide . '">';
 
-	// --- maybe load pro blocklist interface ---
+	// --- blocklist heading ---
+	echo '<h3 style="margin-bottom:10px;">' . esc_html(  __( 'Blocklists', 'forcefield' ) ) . '</h3>' . PHP_EOL;
+
+	echo '<table>';
+
+		// --- Blocklist Expiries ---
+		echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Blocklist Expiries', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+
+		// --- token expiry time ---
+		echo '<tr><td><b>' . esc_html( __( 'Action Token Expiry', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+		$expiry = forcefield_get_setting( 'blocklist_tokenexpiry', false );
+		echo '<td><input style="width:50px;" type="number" name="ff_blocklist_tokenexpiry" min="1" value="' . esc_attr( $expiry ) . '"></td>';
+		echo '<td width="10"></td>';
+		echo '<td>' . esc_html( __( 'Length of time that action tokens are valid.', 'forcefield' ) ) . '</td>';
+		echo '<td width="10"></td><td>(' . esc_html( __( 'default', 'forcefield' ) ) . ': 300s)</td></tr>' . PHP_EOL;
+
+		// --- blocklist expiry time (blocklist_cooldown) ---
+		echo '<tr><td class="valigntop"><b>' . esc_html(  __( 'Block Cooldown Time', 'forcefield' ) ) . '</b></td>';
+		echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cooldown">';
+		echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
+		$cooldown = forcefield_get_setting( 'blocklist_cooldown', false );
+		foreach ( $intervals as $key => $interval ) {
+			$selected = '';
+			if ( $cooldown == $key ) {
+				$selected = ' selected="selected"';
+			}
+			echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
+			echo esc_html( $interval['display'] ) . '</option>';
+		}
+		echo '</select><div style="margin-left:20px; display:inline-block;">';
+		echo esc_html( __( 'How often trangressions are reduced over time.', 'forcefield' ) ) . '</div></td></tr>';
+
+		// --- blocklist expiry time (blocklist_expiry) ---
+		echo '<tr><td class="valigntop"><b>' . esc_html( __('Block Expiry Time', 'forcefield' ) ) . '</b></td>';
+		echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_expiry">';
+		echo '<option value="none">' . esc_html( __('None', 'forcefield' ) ) . '</option>';
+		$expiry = forcefield_get_setting( 'blocklist_expiry', false );
+		foreach ( $intervals as $key => $interval ) {
+			$selected = '';
+			if ( $expiry == $key ) {
+				$selected = ' selected="selected"';
+			}
+			echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
+			echo esc_html( $interval['display'] ) . '</option>';
+		}
+		echo '</select><div style="margin-left:20px; display:inline-block;">';
+		echo esc_html( __( 'How long before an IP block expires.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
+
+		// --- blocklist delete time (blocklist_delete) ---
+		echo '<tr><td class="valigntop"><b>' . esc_html( __( 'Block Delete Time', 'forcefield' ) ) . '</b></td>';
+		echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_delete">';
+		echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
+		$delete = forcefield_get_setting( 'blocklist_delete', false );
+		foreach ( $intervals as $key => $interval ) {
+			$selected = '';
+			if ( $delete == $key ) {
+				$selected = ' selected="selected"';
+			}
+			echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
+			echo esc_html( $interval['display'] ) . '</option>';
+		}
+		echo '</select><div style="margin-left:20px; display:inline-block;">';
+		echo esc_html( __( 'How long before an IP record is deleted.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
+
+		// --- blocklist cleanup frequency (blocklist_cleanups) ---
+		echo '<tr><td class="valigntop"><b>' . esc_html( __( 'CRON Cleanups', 'forcefield' ) ) . '</b></td>';
+		echo '<td width="20"></td><td colspan="5"><select name="ff_blocklist_cleanups">';
+		echo '<option value="none">' . esc_html( __( 'None', 'forcefield' ) ) . '</option>';
+		$cleanup = forcefield_get_setting( 'blocklist_cleanups', false );
+		foreach ( $intervals as $key => $interval ) {
+			$selected = '';
+			if ( $cleanup == $key ) {
+				$selected = ' selected="selected"';
+			}
+			echo '<option value="' . esc_attr( $key ) . '"' . $selected . '>';
+			echo esc_html( $interval['display'] ) . '</option>';
+		}
+		echo '</select><div style="margin-left:20px; display:inline-block;">';
+		echo esc_html( __( 'How often blocklist cleanups are scheduled.', 'forcefield' ) ) . '</div></td></tr>' . PHP_EOL;
+
+		// --- IP Lists ---
+		echo '<tr height="10"><td> </td></tr>';
+		echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Manual IP Lists', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+
+		// --- IP Whitelist (textarea) ---
+		$ipwhitelist = forcefield_get_setting( 'blocklist_whitelist', false );
+		if ( is_array( $ipwhitelist ) ) {
+			$ipwhitelist = implode("\n", $ipwhitelist);
+		} else {
+			$ipwhitelist = '';
+		}
+		echo '<tr><td class="valigntop"><b>' . esc_html( __( 'Manual IP Whitelist', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+		echo '<td colspan="3"><textarea class="ip-textarea" rows="4" name="ff_blocklist_whitelist">' . $ipwhitelist . '</textarea></td>';
+		echo '<td></td><td>' . esc_html( __( 'comma and/or line separated', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
+
+		// --- IP Blacklist (textarea) ---
+		echo '<tr height="10"><td> </td></tr>';
+		$ipblacklist = forcefield_get_setting( 'blocklist_blacklist', false );
+		if ( is_array( $ipblacklist ) ) {
+			$ipblacklist = implode("\n", $ipblacklist);
+		} else {
+			$ipblacklist = '';
+		}
+		echo '<tr><td class="valigntop"><b>' . esc_html( __('Manual IP Blacklist', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+		echo '<td colspan="3"><textarea class="ip-textarea" rows="4" name="ff_blocklist_blacklist">' . $ipblacklist . '</textarea></td>';
+		echo '<td></td><td>' . esc_html( __( 'comma and/or line separated', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
+
+	echo '</table>';
+
+	// --- maybe load Pro whitelist/blocklist interface ---
 	// 0.9.2: [PRO] Manual IP List Interface
 	// 0.9.4: use do_action instead of function_exists
 	do_action( 'forcefield_lists_interface' );
@@ -1373,12 +1366,14 @@ function forcefield_admin_page() {
 	if ( $blocklist && ( count( $blocklist) > 0 ) ) {
 
 		// --- clear entire blocklist button ---
+		// 1.0.2: change from form to button trigger to prevent form within form
 		echo '<div style="width:100%;text-align:center;">';
-		echo '<form action="' . esc_url( $adminajax ) . '" target="blocklist-action-frame">';
-		echo '<input type="hidden" name="action" value="forcefield_blocklist_clear">';
-		wp_nonce_field( 'forcefield-clear' );
-		echo '<input type="submit" class="button-secondary" value="' . esc_attr( __( 'Clear Entire IP Blocklist', 'forcefield' ) ) . '" onclick="return forcefield_blocklist_clear();">';
-		echo '</form></div><br>' . PHP_EOL;
+		// echo '<form action="' . esc_url( $adminajax ) . '" target="blocklist-action-frame">';
+		// echo '<input type="hidden" name="action" value="forcefield_blocklist_clear">';
+		// wp_nonce_field( 'forcefield-clear' );
+		echo '<input type="button" class="button-secondary" value="' . esc_attr( __( 'Clear Entire IP Blocklist', 'forcefield' ) ) . '" onclick="forcefield_blocklist_clear();">';
+		// echo '</form>';
+		echo '</div><br>' . PHP_EOL;
 
 		// TODO: add sortable columns and/or pagination
 		// - group records by IP address to show activity ?
@@ -1455,7 +1450,8 @@ function forcefield_admin_page() {
 		echo '</table></div>' . PHP_EOL;
 
 	} else {
-		echo '<b>' . esc_html( __( 'No IP Transgressions Recorded Yet.', 'forcefield' ) ) . '</b><br>' . PHP_EOL;
+		// 1.0.2: change no transgressions yet message
+		echo '<b>' . esc_html( __( 'No current IP transgression records to show.', 'forcefield' ) ) . '</b><br>' . PHP_EOL;
 	}
 
 	// --- blocklist action iframe ---
@@ -1464,6 +1460,34 @@ function forcefield_admin_page() {
 
 	// --- close IP blocklist div ---
 	echo '</div>' . PHP_EOL;
+
+	// ------------------------
+	// Reset and Update Buttons
+	// ------------------------
+	echo '<div id="update-buttons"><br><table style="width:100%;">' . PHP_EOL;
+
+		// --- Reset Button ---
+		echo '<tr><td width="33%" style="text-align:right;">' . PHP_EOL;
+			// 0.9.7: fix to incorrect javascript function (returntodefaults)
+			// 0.9.8: change type from submit to button so enter = save
+			echo '<input type="button" value="' . esc_attr( __( 'Reset to Defaults', 'forcefield' ) ) . '" class="button-secondary" onclick="return forcefield_reset();" style="margin-right:20px;">' . PHP_EOL;
+
+		echo '</td>' . PHP_EOL;
+
+		// --- middle spacer ---
+		echo '<td width="33%"> </td>' . PHP_EOL;
+
+		// --- Update Submit Button ---
+		echo '<td width="33%" style="text-align:center;">' . PHP_EOL;
+			// 0.9.7: added missing ID tag for sidebar button trigger
+			echo '<input id="plugin-settings-save" type="submit" class="button-primary" value="' . esc_attr( __( 'Update Settings', 'forcefield' ) ) . '">' . PHP_EOL;
+		echo '</td></tr>' . PHP_EOL;
+
+	// --- close update buttons div ---
+	echo '</table><br></div>' . PHP_EOL;
+
+	// --- close main settings form ---
+	echo '</form>' . PHP_EOL;
 
 	// --- close #wrapbox ---
 	echo '</div></div>' . PHP_EOL;
