@@ -5,7 +5,7 @@
 // ===========================
 //
 // --------------
-// Version: 1.1.8
+// Version: 1.2.2
 // --------------
 // Note: Changelog and structure at end of file.
 //
@@ -120,6 +120,10 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		// -----------------
 		public function __construct( $args ) {
 
+			if ( !is_array( $args ) ) {
+				return;
+			}
+
 			// --- set debug switch ---
 			// 1.1.2: added debug switch check
 			$prefix = '';
@@ -149,6 +153,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			unset( $args['options'] );
 
 			// --- set plugin args and namespace ---
+			// 1.1.9: filter all arguments
+			$args = apply_filters( $args['namespace'] . '_args', $args );
 			$this->args = $args;
 			$this->namespace = $args['namespace'];
 
@@ -222,7 +228,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					$profiles = explode( ',', $proslug );
 					$proslug = trim( $profiles[0] );
 				}
-				$args['proslug'] = substr( $proslug, 0, - 4 );    // strips .php extension
+				$args['proslug'] = substr( $proslug, 0, - 4 ); // strips .php extension
 				$args['profiles'] = $profiles;
 			}
 
@@ -330,7 +336,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			}
 
 			// 1.0.9: trigger add settings action
-			do_action( $args['nsmespace'] . '_add_settings', $args );
+			// 1.2.1: fix to namespace typo (nsmespace)
+			do_action( $args['namespace'] . '_add_settings', $args );
 		}
 
 		// -----------------------
@@ -464,16 +471,11 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// 1.0.2: fix to namespace key typo in isset check
 			// 1.0.3: only use namespace not settings key
 			// 1.0.9: check page is set and matches slug
-			if ( !isset( $_REQUEST['page'] ) ) {
+			if ( !isset( $_REQUEST['page'] ) || ( $_REQUEST['page'] != $args['slug'] ) ) {
 				return;
 			}
-			if ( $_REQUEST['page'] != $args['slug'] ) {
-				return;
-			}
-			if ( !isset( $_POST[$args['namespace'] . '_update_settings'] ) ) {
-				return;
-			}
-			if ( 'yes' != $_POST[$args['namespace'] . '_update_settings'] ) {
+			$updatekey = $args['namespace'] . '_update_settings';
+			if ( !isset( $_POST[$updatekey] ) || ( 'yes' != $_POST[$args['namespace'] . '_update_settings'] ) ) {
 				return;
 			}
 
@@ -524,7 +526,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					if ( isset( $_POST[$postkey] ) ) {
 						$posted = $_POST[$postkey];
 					}
-					$newsettings = false;
+					$newsettings = null;
 
 					// --- maybe validate special options ---
 					// 1.0.9: check for special options to prepare
@@ -666,7 +668,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						}
 						if ( is_string( $valid ) ) {
 							$newsettings = $posted;
-						} elseif ( is_array( $valid ) ) {
+						} elseif ( is_array( $valid ) && ( count( $valid ) > 0 ) ) {
+							// 1.2.0: fix to check for empty valid array
 							foreach ( $posted as $i => $value ) {
 								if ( !in_array( $value, $valid ) ) {
 									unset( $posted[$i] );
@@ -714,7 +717,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 					if ( $this->debug ) {
 						echo 'New Settings for Key ' . $key . ': ';
-						if ( $newsettings ) {
+						// 1.2.0: added isset check for newsetting
+						if ( !is_null( $newsettings ) ) {
 							echo '(to-validate) ' . print_r( $newsettings, true ) . '<br>';
 						} else {
 							// 1.1.7 handle if (new) key not set yet
@@ -727,13 +731,22 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					}
 
 					// --- maybe validate new settings ---
-					if ( $newsettings ) {
+					// 1.1.9: fix to allow saving of zero value
+					// 1.2.1: fix to allow saving of empty value
+					if ( !is_null( $newsettings ) ) {
 						if ( is_array( $newsettings ) ) {
 
 							// --- validate array of settings ---
+							// 1.1.9: fix to allow saving of zero value
+							// 1.2.1: fix to allow saving of empty value
 							foreach ( $newsettings as $newkey => $newvalue ) {
 								$newsetting = $this->validate_setting( $newvalue, $valid, $validate_args );
-								if ( $newsetting && ( '' != $newsetting ) ) {
+								if ( $this->debug ) {
+									echo 'Validated Setting array value ' . $newvalue . ' to ' . $newsetting;
+								}
+								if ( $newsetting || ( '' == $newsetting ) ) {
+									$newsettings[$newkey] = $newsetting;
+								} elseif ( ( 0 == $newsetting ) || ( '0' == $newsetting ) ) {
 									$newsettings[$newkey] = $newsetting;
 								} else {
 									unset( $newsettings[$newkey] );
@@ -745,7 +758,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 								$settings[$key] = $newsettings;
 							}
 
-						} else {
+						} elseif ( $newsettings || ( '' == $newsettings ) || ( 0 === $newsettings ) || ( '0' === $newsettings ) ) {
 
 							// --- validate single setting ---
 							if ( 'csv' == $type ) {
@@ -753,13 +766,22 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 								$values = explode( ',', $newsettings );
 								$newvalues = array();
 								foreach ( $values as $value ) {
-									$newvalues[] = $this->validate_setting( $value, $valid, $validate_args );
+									$newvalue = $this->validate_setting( $value, $valid, $validate_args );
+									$newvalues[] = $newvalue;
+									if ( $this->debug ) {
+										echo 'Validated Setting value ' . $value . ' to ' . $newvalue;
+									}
 								}
 								$newsettings = implode( ',', $newvalues );
 								$settings[$key] = $newsettings;
 							} else {
 								$newsetting = $this->validate_setting( $newsettings, $valid, $validate_args );
-								if ( $newsetting ) {
+								// 1.1.9: fix to allow saving of zero value
+								// 1.2.1: fix to allow saving of empty value
+								if ( $this->debug ) {
+									echo 'Validated Setting single value ' . $newsettings . ' to ' . $newsetting . '<br>';
+								}
+								if ( $newsetting || ( '' == $newsetting ) || ( 0 == $newsetting ) || ( '0' == $newsetting ) ) {
 									$settings[$key] = $newsetting;
 								}
 							}
@@ -788,13 +810,13 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				$settings = call_user_func( $funcname, $settings );
 			}
 
-			// --- output new settings ---			
+			// --- output new settings ---
 			if ( $this->debug ) {
 				echo "<br><b>All New Settings:</b><br>";
 				print_r( $settings );
 				echo "<br><br>";
 			}
-				
+
 			if ( $settings && is_array( $settings ) ) {
 
 				// --- loop default keys to remove others ---
@@ -804,6 +826,28 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						unset( $settings[$key] );
 					}
 				}
+
+				// --- save settings tab ---
+				// 1.2.0: validate and save current settings tab
+				if ( isset( $_POST['settingstab'] ) ) {
+					$currenttab = $_POST['settingstab'];
+					$tabs = array();
+					foreach ( $options as $key => $option ) {
+						if ( isset ( $option['tab'] ) && !in_array( $option['tab'], $tabs ) ) {
+							$tabs[] = $option['tab'];
+						}
+					}
+					if ( count( $tabs ) > 0 ) {
+						if ( in_array( $currenttab, $tabs ) ) {
+							$settings['settingstab'] = $currenttab;
+						} elseif ( in_array( 'general', $tabs ) ) {
+							$settings['settingstab'] = 'general';
+						} else {
+							$settings['settingstab'] = $tabs[0];
+						}
+					}
+				}
+
 
 				// --- update the plugin settings ---
 				$settings['savetime'] = time();
@@ -921,8 +965,11 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				// 1.0.6: fix to posted variable type (vposted)
 				// 1.0.9: remove check for http prefix to allow other protocols
 				// 1.1.7: use FILTER_SANITIZE_URL not FILTER_SANITIZE_STRING
+				// 1.2.1: allow for clearing URL by saving empty value
 				$posted = trim( $posted );
-				$posted = filter_var( $posted, FILTER_SANITIZE_URL );
+				if ( '' != $posted ) {
+					$posted = filter_var( $posted, FILTER_SANITIZE_URL );
+				}
 
 				// 1.1.7: remove FILTER_VALIDATE_URL check - not working!?
 				if ( $this->debug ) {
@@ -1116,6 +1163,12 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- AJAX readme viewer ---
 			add_action( 'wp_ajax_' . $namespace . '_readme_viewer', array( $this, 'readme_viewer' ) );
+
+			// --- load Freemius (requires PHP 5.4+) ---
+			// 1.2.1: move Freemius loading to plugins_loaded hook
+			if ( version_compare( PHP_VERSION, '5.4.0' ) >= 0 ) {
+				add_action( 'plugins_loaded', array( $this, 'load_freemius' ), 5 );
+			}
 		}
 
 		// ---------------------
@@ -1134,10 +1187,10 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			}
 
 			// --- Pro Functions ---
-			$plan = 'free';
 			// 1.0.2: added prototype auto-loading of Pro file(s)
+			// 1.2.1: fix overriding of plan arg to free
 			// (to work with @fs_premium_only file list)
-			if ( count( $args['profiles'] ) > 0 ) {
+			if ( isset( $args['profiles'] ) && count( $args['profiles'] ) > 0 ) {
 				$included = get_included_files();
 				foreach ( $args['profiles'] as $profile ) {
 					// --- chech for php extension ---
@@ -1153,8 +1206,11 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					}
 				}
 			}
-			$args['plan'] = $plan;
-			$this->args = $args;
+			// 1.2.0: only change plan setting if premium files found
+			if ( isset( $plan ) ) {
+				$args['plan'] = $plan;
+				$this->args = $args;
+			}
 
 			// --- Plugin Update Checker ---
 			// note: lack of updatechecker.php file indicates WordPress.Org SVN repo version
@@ -1174,10 +1230,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// 1.0.9: added action for extra loader helpers (eg. WordQuest)
 			do_action( $args['namespace'] . '_loader_helpers', $args );
 
-			// --- Freemius (requires PHP 5.4+) ---
-			if ( version_compare( PHP_VERSION, '5.4.0' ) >= 0 ) {
-				$this->load_freemius();
-			}
+			// --- load Freemius (requires PHP 5.4+) ---
+			// 1.2.1: moved to plugins_loaded action hook
 
 		}
 
@@ -1295,6 +1349,12 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		// ====================
 		public function load_freemius() {
 
+			// 1.2.1: no need to load if not in admin area
+			// if ( !is_admin() ) {
+			//	return;
+			// }
+			// echo '<span style="display:none;">Freemius Loading...</span>';
+
 			$args = $this->args;
 			$namespace = $this->namespace;
 
@@ -1302,13 +1362,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			if ( !isset( $args['freemius_id'] ) || !isset( $args['freemius_key'] ) ) {
 				return;
 			}
-
+			
 			// --- check for free / premium plan ---
 			// convert plan string value of 'free' or 'premium' to boolean premium switch
 			// TODO: check for active addons also ?
 			$premium = false;
 			if ( isset( $args['plan'] ) && ( 'premium' == $args['plan'] ) ) {
 				$premium = true;
+			} else {
+				// 1.2.1: added filter for premium init
+				$premium = apply_filters( 'freemius_init_premium_' . $args['namespace'], $premium );
 			}
 
 			// --- maybe redirect link to plugin support forum ---
@@ -1321,9 +1384,10 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					// changes the support forum slug for premium based on the pro plugin file slug
 					// 1.0.7: fix support URL undefined variable warning
 					$support_url = $args['support'];
-					if ( $premium ) {
-						$support_url = str_replace( $args['slug'], $args['proslug'], $support_url );
-					}
+					// 1.2.1: removed in favour of filtering via Pro
+					// if ( $premium && isset( $args['proslug'] ) ) {
+					// 	$support_url = str_replace( $args['slug'], $args['proslug'], $support_url );
+					// }
 					$support_url = apply_filters( 'freemius_plugin_support_url_redirect', $support_url, $args['slug'] );
 					wp_redirect( $support_url );
 					exit;
@@ -1346,15 +1410,17 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				if ( !isset( $args['type'] ) ) {
 					$args['type'] = 'plugin';
 				}
-				if ( !isset( $args['hasaddons'] ) ) {
-					$args['hasaddons'] = false;
+				if ( !isset( $args['wporg'] ) ) {
+					$args['wporg'] = false;
 				}
 				if ( !isset( $args['hasplans'] ) ) {
 					$args['hasplans'] = false;
 				}
-				if ( !isset( $args['wporg'] ) ) {
-					$args['wporg'] = false;
+				if ( !isset( $args['hasaddons'] ) ) {
+					$args['hasaddons'] = false;
 				}
+				// 1.2.1: add filter for addons init
+				$args['hasaddons'] = apply_filters( 'freemius_init_addons_' . $args['namespace'], $args['hasaddons'] );
 
 				// --- set defaults for options submenu key values ---
 				// 1.0.2: fix to isset check keys
@@ -1372,6 +1438,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 				// --- set Freemius settings from plugin settings ---
 				// 1.1.1: remove admin_url wrapper on Freemius first-path value
+				// TODO: further possible args for Freemius init (eg. bundle_id)
+				// ref: https://freemius.com/help/documentation/wordpress-sdk/integrating-freemius-sdk/
 				$first_path = add_query_arg( 'page', $args['slug'], 'admin.php' );
 				$first_path = add_query_arg( 'welcome', 'true', $first_path );
 				$settings = array(
@@ -1399,12 +1467,18 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 				// --- filter settings before initializing ---
 				$settings = apply_filters( 'freemius_init_settings_' . $args['namespace'], $settings );
+				if ( $this->debug ) {
+					echo '<span style="display:none;">Freemius Settings: ' . print_r( $settings, true ) . '</span>';
+				}
 				if ( !$settings || !is_array( $settings ) ) {
 					return;
 				}
 
 				// --- initialize Freemius now ---
 				$freemius = $GLOBALS[$namespace . '_freemius'] = fs_dynamic_init( $settings );
+				if ( $this->debug ) {
+					echo '<span style="display:none;">Freemius Object: ' . print_r( $freemius, true ) . '</span>';
+				}
 
 				// --- set plugin basename ---
 				// 1.0.1: set free / premium plugin basename
@@ -1414,6 +1488,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 				// --- add Freemius connect message filter ---
 				$this->freemius_connect();
+
+				// --- fire Freemius loaded action ---
+				do_action( $args['namespace'] . '_loaded' );
 			}
 		}
 
@@ -1479,6 +1556,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			if ( !isset( $args['menutitle'] ) ) {
 				$args['menutitle'] = $args['title'];
 			}
+			// 1.1.9: added filters for page and menu titles
+			$pagetitle = apply_filters( $namespace . '_settings_page_title', $args['pagetitle'] );
+			$menutitle = apply_filters( $namespace . '_settings_menu_title', $args['menutitle'] );
 
 			// --- trigger filter plugin menu action ---
 			// (can hook into this to add an admin menu manually using the provided loader args)
@@ -1505,6 +1585,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		// -----------------
 		// Plugin Page Links
 		// -----------------
+		// 1.2.2: merge in plugin links instead of using array_unshift
 		public function plugin_links( $links, $file ) {
 
 			$args = $this->args;
@@ -1513,27 +1594,57 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				// --- add settings link ---
 				// 1.1.1: fix to settings page link URL
 				// (depending on whether top level menu or Settings submenu item)
-				$page = 'options-general.php';
-				if ( $this->menu_added ) {$page = 'admin.php';}
+				$page = $this->menu_added ? 'admin.php' : 'options-general.php';
 				$settings_url = add_query_arg( 'page', $args['slug'], admin_url( $page ) );
 				$settings_link = "<a href='" . esc_url( $settings_url ) . "'>" . esc_html( __( 'Settings' ) ) . "</a>";
-				array_unshift( $links, $settings_link );
+				$link = array( 'settings' => $settings_link );
+				$links = array_merge( $link, $links );
 
 				// --- maybe add Pro upgrade link ---
-				// TODO: check Freemius upgrade/addon URLs
-				// if ( isset( $args['hasplans'] && $args['hasplans'] ) {
-				//	// TODO: check if premium is already installed
-				//	$upgrade_url = add_query_arg( 'page', $args['slug'], admin_url( 'admin.php' ) );
-				//	$upgrade_link = "<b><a href='" . esc_url( $upgrade_url ) . "'>" . esc_html( __('Upgrade to Pro' ) ) . "</a></b>";
-				//	array_unshift( $links, $upgrade_link );
-				// }
+				if ( isset( $args['hasplans'] ) && $args['hasplans'] ) {
+
+					// 1.2.1: add check if premium is already installed
+					if ( !isset( $args['plan'] ) || ( 'premium' != $args['plan'] ) ) {
+
+						// -- internal upgrade link ---
+						if ( isset( $args['upgrade_link'] ) ) {
+							$upgrade_url = $args['upgrade_link'];
+							$upgrade_target = '';
+						} else {
+							$upgrade_url = add_query_arg( 'page', $args['slug'] . '-pricing', admin_url( 'admin.php' ) );
+							$upgrade_target = !strstr( $upgrade_url, '/wp-admin/' ) ? ' target="_blank"' : '';
+						}
+						$upgrade_link = "<b><a href='" . esc_url( $upgrade_url ) . "'" . $upgrade_target . ">" . esc_html( __('Upgrade' ) ) . "</a></b>";
+						$link = array( 'upgrade' => $upgrade_link );
+						$links = array_merge( $link, $links );
+
+						// --- external pro link ---
+						// 1.2.0: added separate pro details link
+						if ( isset( $args['pro_link'] ) ) {
+							$pro_target = !strstr( $args['pro_link'], '/wp-admin/' ) ? ' target="_blank"' : '';
+							$pro_link = "<b><a href='" . esc_url( $args['pro_link'] ) . "'" . $pro_target . ">" . esc_html( __('Pro Details' ) ) . "</a></b>";
+							$link = array( 'pro-details' => $pro_link );
+							$links = array_merge( $link, $links );
+						}
+					}
+				}
 
 				// --- maybe add Addons link ---
-				// if ( isset($args['hasaddons'] && $args['hasaddons' ) {
-				//	$addons_url = add_query_arg( 'page', $args['slug'], admin_url( 'admin.php' ) );
-				//	$addons_link = "<a href='" . esc_url( $addons_url )."'>" . esc_html( __( 'Add Ons' ) ) . "</a>";
-				//	array_unshift( $links, $addons_link );
-				// }
+				// 1.2.0: activated add-ons link
+				// 1.2.2: remove duplication of addons link
+				if ( !isset( $args['hasaddons'] ) || !$args['hasaddons'] ) {
+					if ( isset( $args['addons_link'] ) ) {
+						$addons_url = $args['addons_link'];
+						$addons_target = !strstr( $addons_url, '/wp-admin/' ) ? ' target="_blank"' : '';
+						$addons_link = "<a href='" . esc_url( $addons_url )."'" . $addons_target . ">" . esc_html( __( 'Add Ons' ) ) . "</a>";
+						$link = array( 'addons' => $addons_link );
+						$links = array_merge( $link, $links );
+					}
+				}
+
+				if ( $this->debug ) {
+					echo '<span style="display:none;">Plugin Links for ' . $file . ': ' . print_r( $links, true )  . '</span>';
+				}
 			}
 
 			return $links;
@@ -1567,17 +1678,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			$args = $this->args;
 
-			// 1.1.8: bug out if already using AdminSanity Notices box
-			global $adminsanity;
-			if ( isset( $adminsanity ) && isset( $adminsanity['load'] ) && $adminsanity['load']['notices'] ) {
-				return;
-			}
-
 			// --- bug out if not on radio station pages ---
 			if ( !isset( $_REQUEST['page'] ) ) {
 				return;
 			}
 			if ( $args['slug'] != substr( $_REQUEST['page'], 0, strlen( $args['slug'] ) ) ) {
+				return;
+			}
+			
+			// 1.2.2: bug out if adminsanity notices are loaded
+			if ( isset( $GLOBALS['forcefield_data']['load']['notices'] ) && $GLOBALS['forcefield_data']['load']['notices'] ) {
 				return;
 			}
 
@@ -1625,16 +1735,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- output debug values ---
 			if ( $this->debug ) {
-				echo "<br><b>Current Settings:</b><br>";
+				echo '<br><b>Current Settings:</b><br>';
 				print_r( $settings );
-				echo "<br><br>";
+				echo '<br><br>';
 
-				echo "<br><b>Plugin Options:</b><br>";
+				echo '<br><b>Plugin Options:</b><br>';
 				print_r( $this->options );
-				echo "<br><br>";
+				echo '<br><br>';
 
 				if ( isset( $_POST ) ) {
-					echo "<br><b>Posted Values:</b><br>";
+					echo '<br><b>Posted Values:</b><br>';
 					foreach ( $_POST as $key => $value ) {
 						echo esc_attr( $key ) . ': ' . print_r( $value, true ) . '<br>';
 					}
@@ -1662,43 +1772,54 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			}
 			$author_icon_url = apply_filters( $namespace . '_author_icon_url', $author_icon_url );
 
-			// --- plugin header styles ---
-			echo "<style>.pluginlink {text-decoration:none;} .smalllink {font-size:11px;}
-			.readme:hover {text-decoration:underline;}</style>";
-
 			// --- open header table ---
-			echo "<table><tr>";
+			echo '<table class="plugin-settings-page-header"><tr>';
 
 			// --- plugin icon ---
-			echo "<td>";
+			// 1.1.9: add filter for plugin icon url
+			$icon_url = apply_filters( $namespace . '_settings_page_icon_url', $icon_url );
+			echo '<td>';
 			if ( $icon_url ) {
-				echo "<img src='" . esc_url( $icon_url ) . "' width='128' height='128'>";
+				echo '<img class="plugin-settings-page-icon" src="' . esc_url( $icon_url ) . '" width="128" height="128">';
 			}
-			echo "</td>";
+			echo '</td>';
 
-			echo "<td width='20'></td><td>";
+			echo '<td width="20"></td><td>';
 
-			echo "<table><tr>";
+			echo '<table><tr>';
 
 			// --- plugin title ---
-			echo "<td><h3 style='font-size:20px;'>";
-			echo "<a href='" . esc_url( $args['home'] ) . "' target='_blank' style='text-decoration:none;'>" . esc_html( $args['title'] ) . "</a>";
-			echo "</h3></td>";
+			// 1.1.9: add filter for plugin pagetitle
+			$title = apply_filters( $namespace . '_settings_page_title', $args['title'] );
+			echo '<td><h3 style="font-size:20px;">';
+			echo '<a href="' . esc_url( $args['home'] ) . '" target="_blank" style="text-decoration:none;">' . esc_html( $title ) . '</a>';
+			echo '</h3></td>';
 
-			echo "<td width='20'></td>";
+			echo '<td width="20"></td>';
 
 			// --- plugin version ---
-			echo "<td><h3>v" . esc_html( $args['version'] ) . "</h3></td></tr>";
+			// 1.1.9: add filter for plugin version
+			$version = apply_filters( $namespace . '_settings_page_version', 'v' . $args['version'] );
+			echo '<td><h3 class="plugin-setttings-page-version">' . esc_html( $version ) . '</h3></td></tr>';
 
-			echo "<tr><td colspan='3' align='center'>";
+			// --- subtitle ---
+			// 1.1.9: added optional subtitle filter display
+			$subtitle = apply_filters( $namespace . '_settings_page_subtitle', '' );
+			if ( '' != $subtitle ) {
+				echo '<tr><td colspan="3" align="center">';
+				echo '<h4 class="plugins-settings-page-subtitle" style="font-size:14px; margin-top:0;">' . esc_html( $subtitle ) . '</h4>';
+				echo '</td></tr>';
+			}
 
-			echo "<table><tr><td align='center'>";
+			echo '<tr><td colspan="3" align="center">';
+
+			echo '<table><tr><td align="center">';
 
 			// ---- plugin author ---
 			// 1.0.8: check if author URL is set
 			if ( isset( $args['author_url'] ) ) {
-				echo "<font style='font-size:16px;'>" . esc_html( __( 'by' ) ) . "</font> ";
-				echo "<a href='" . esc_url( $args['author_url'] ) . "' target='_blank' style='text-decoration:none;font-size:16px;' target=_blank><b>" . esc_html( $args['author'] ) . "</b></a><br><br>";
+				echo '<font style="font-size:16px;">' . esc_html( __( 'by' ) ) . '</font> ';
+				echo '<a href="' . esc_url( $args['author_url'] ) . '" target="_blank" style="text-decoration:none;font-size:16px;" target="_blank"><b>' . esc_html( $args['author'] ) . '</b></a><br><br>';
 			}
 
 			// --- readme / docs / support links ---
@@ -1707,20 +1828,20 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// 1.1.0: added title attributes to links
 			$links = array();
 			if ( isset( $args['home'] ) ) {
-				$links[] = "<a href='" . esc_url( $args['home'] ) . "' class='pluginlink smalllink' title='" . esc_attr( __( 'Plugin Homepage' ) ) . "' target='_blank'><b>" . esc_html( __( 'Home' ) ) . "</b></a>";
+				$links[] = '<a href="' . esc_url( $args['home'] ) . '" class="pluginlink smalllink" title="' . esc_attr( __( 'Plugin Homepage' ) ) . '" target="_blank"><b>' . esc_html( __( 'Home' ) ) . '</b></a>';
 			}
 			if ( !isset( $args['readme'] ) || ( false !== $args['readme'] ) ) {
 				$readme_url = add_query_arg( 'action', $namespace . '_readme_viewer', admin_url( 'admin-ajax.php' ) );
-				$links[] = "<a href='" . esc_url( $readme_url ) . "' class='pluginlink smalllink thickbox' title='" . esc_attr( __( 'View Plugin' ) ) . " readme.txt'><b>" . esc_html( __( 'Readme' ) ) . "</b></a>";
+				$links[] = '<a href="' . esc_url( $readme_url ) . '" class="pluginlink smalllink thickbox" title="' . esc_attr( __( 'View Plugin' ) ) . ' readme.txt"><b>' . esc_html( __( 'Readme' ) ) . '</b></a>';
 			}
 			if ( isset( $args['docs'] ) ) {
-				$links[] = "<a href='" . esc_url( $args['docs'] ) . "' class='pluginlink smalllink' title='" . esc_attr( __( 'Plugin Documentation' ) ) . "' target='_blank'><b>" . esc_html( __( 'Docs' ) ) . "</b></a>";
+				$links[] = '<a href="' . esc_url( $args['docs'] ) . '" class="pluginlink smalllink" title="' . esc_attr( __( 'Plugin Documentation' ) ) . '" target="_blank"><b>' . esc_html( __( 'Docs' ) ) . '</b></a>';
 			}
 			if ( isset( $args['support'] ) ) {
-				$links[] = "<a href='" . esc_url( $args['support'] ) . "' class='pluginlink smalllink' title='" . esc_attr( __( 'Plugin Support' ) ) . "' target='_blank'><b>" . esc_html( __( 'Support' ) ) . "</b></a>";
+				$links[] = '<a href="' . esc_url( $args['support'] ) . '" class="pluginlink smalllink" title="' . esc_attr( __( 'Plugin Support' ) ) . '" target="_blank"><b>' . esc_html( __( 'Support' ) ) . '</b></a>';
 			}
 			if ( isset( $args['development'] ) ) {
-				$links[] = "<a href='" . esc_url( $args['development'] ) . "' class='pluginlink smalllink' title='" . esc_attr( __( 'Plugin Development' ) ) . "' target='_blank'><b>" . esc_html( __( 'Dev' ) ) . "</b></a>";
+				$links[] = '<a href="' . esc_url( $args['development'] ) . '" class="pluginlink smalllink" title="' . esc_attr( __( 'Plugin Development' ) ) . '" target="_blank"><b>' . esc_html( __( 'Dev' ) ) . '</b></a>';
 			}
 
 			// 1.0.9: change filter from _plugin_links to disambiguate
@@ -1732,28 +1853,28 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- author icon ---
 			if ( $author_icon_url ) {
-				echo "</td><td>";
+				echo '</td><td>';
 
 				// 1.0.8: check if author URL is set for link
 				if ( isset( $args['author_url'] ) ) {
-					echo "<a href='" . esc_url( $args['author_url'] ) . "' target=_blank>";
+					echo '<a href="' . esc_url( $args['author_url'] ) . '" target="_blank">';
 				}
-				echo "<img src='" . esc_url( $author_icon_url ) . "' width='64' height='64' border='0'>";
+				echo '<img src="' . esc_url( $author_icon_url ) . '" width="64" height="64" border="0">';
 				if ( isset( $args['author_url'] ) ) {
-					echo "</a>";
+					echo '</a>';
 				}
 			}
 
-			echo "</td></tr></table>";
+			echo '</td></tr></table>';
 
-			echo "</td></tr></table>";
+			echo '</td></tr></table>';
 
-			echo "</td><td width='50'></td><td style='vertical-align:top;'>";
+			echo '</td><td width="50"></td><td style="vertical-align:top;">';
 
 			// --- plugin supporter links ---
 			// 1.0.1: set rate/share/donate links and texts
 			// 1.0.8: added filters for rate/share/donate links
-			echo "<br>";
+			echo '<br><div class="plugin-settings-page-links">';
 
 			// --- Rate link ---
 			if ( isset( $args['wporgslug'] ) ) {
@@ -1762,16 +1883,17 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				} elseif ( isset( $args['type'] ) && ( 'theme' == $args['type'] ) ) {
 					$rate_url = 'https://wordpress.org/support/theme/' . $args['wporgslug'] . '/reviews/#new-post';
 				} else {
-					$rate_url = 'https://wordpress.org/plugins/' . $args['wporgslug'] . '/reviews/#new-post';
+					// 1.2.2: update rating URL to match new repo scheme
+					$rate_url = 'https://wordpress.org/support/plugins/' . $args['wporgslug'] . '/reviews/#new-post';
 				}
 				if ( isset( $args['ratetext'] ) ) {
 					$rate_text = $args['ratetext'];
 				} else {
 					$rate_text = __( 'Rate on WordPress.Org' );
 				}
-				$rate_link = "<a href='" . esc_url( $rate_url ) . "' class='pluginlink' target='_blank'>";
-				$rate_link .= "<span style='font-size:24px; color:#FC5; margin-right:10px;' class='dashicons dashicons-star-filled'></span> ";
-				$rate_link .= esc_html( $rate_text ) . "</a><br><br>";
+				$rate_link = '<a href="' . esc_url( $rate_url ) . '" class="pluginlink" target="_blank">';
+				$rate_link .= '<span style="font-size:24px; color:#FC5; margin-right:10px;" class="dashicons dashicons-star-filled"></span> ';
+				$rate_link .= esc_html( $rate_text ) . '</a><br><br>';
 				$rate_link = apply_filters( $args['namespace'] . '_rate_link', $rate_link, $args );
 				if ( $rate_link ) {
 					// phpcs:ignore WordPress.Security.OutputNotEscaped
@@ -1786,9 +1908,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				} else {
 					$share_text = __( 'Share the Plugin Love' );
 				}
-				$share_link = "<a href='" . esc_url( $args['share'] ) . "' class='pluginlink' target='_blank'>";
-				$share_link .= "<span style='font-size:24px; color:#E0E; margin-right:10px;' class='dashicons dashicons-share'></span> ";
-				$share_link .= esc_html( $share_text ) . "</a><br><br>";
+				$share_link = '<a href="' . esc_url( $args['share'] ) . '" class="pluginlink" target="_blank">';
+				$share_link .= '<span style="font-size:24px; color:#E0E; margin-right:10px;" class="dashicons dashicons-share"></span> ';
+				$share_link .= esc_html( $share_text ) . '</a><br><br>';
 				$share_link = apply_filters( $args['namespace'] . '_share_link', $share_link, $args );
 				if ( $share_link ) {
 					// phpcs:ignore WordPress.Security.OutputNotEscaped
@@ -1803,9 +1925,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				} else {
 					$donate_text = __( 'Support this Plugin' );
 				}
-				$donate_link = "<a href='" . esc_url( $args['donate'] ) . "' class='pluginlink' target='_blank'>";
-				$donate_link .= "<span style='font-size:24px; color:#E00; margin-right:10px;' class='dashicons dashicons-heart'></span> ";
-				$donate_link .= "<b>" . esc_html( $donate_text ) . "</b></a><br><br>";
+				$donate_link = '<a href="' . esc_url( $args['donate'] ) . '" class="pluginlink" target="_blank">';
+				$donate_link .= '<span style="font-size:24px; color:#E00; margin-right:10px;" class="dashicons dashicons-heart"></span> ';
+				$donate_link .= '<b>' . esc_html( $donate_text ) . '</b></a><br><br>';
 				$donate_link = apply_filters( $args['namespace'] . '_donate_link', $donate_link, $args );
 				if ( $donate_link ) {
 					// phpcs:ignore WordPress.Security.OutputNotEscaped
@@ -1813,7 +1935,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				}
 			}
 
-			echo "</td></tr>";
+			echo '</div></td></tr>';
 
 			// --- output updated and reset messages ---
 			if ( isset( $_GET['updated'] ) ) {
@@ -1825,23 +1947,24 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					$message = $settings['title'] . ' ' . __( 'Settings Reset!' );
 				}
 				if ( isset( $message ) ) {
-					echo "<tr><td></td><td></td><td align='center'>";
+					echo '<tr><td></td><td></td><td align="center">';
 					// phpcs:ignore WordPress.Security.OutputNotEscaped
 					echo $this->message_box( $message, false );
-					echo "</td></tr>";
+					echo '</td></tr>';
 				}
 			} else {
 				// --- maybe output welcome message ---
 				if ( isset( $_REQUEST['welcome'] ) && ( 'true' == $_REQUEST['welcome'] ) ) {
-					if ( isset( $args['welcome'] ) ) {
-						echo "<tr><td colspan='3' align='center'>";
+					// 1.2.3: skip output if welcome message argument is empty
+					if ( isset( $args['welcome'] ) && ( '' != $args['welcome'] ) ) {
+						echo '<tr><td colspan="3" align="center">';
 						echo $this->message_box( $args['welcome'], false );
-						echo "</td></tr>";
+						echo '</td></tr>';
 					}
 				}
 			}
 
-			echo "</table><br>";
+			echo '</table><br>';
 		}
 
 		// -------------
@@ -1852,7 +1975,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$namespace = $this->namespace;
 
 			// --- open page wrapper ---
-			echo "<div id='pagewrap' class='wrap' style='width:100%;margin-right:0px !important;'>";
+			echo '<div id="pagewrap" class="wrap" style="width:100%;margin-right:0px !important;">';
 
 			do_action( $namespace . '_admin_page_top' );
 
@@ -1867,7 +1990,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			do_action( $namespace . '_admin_page_bottom' );
 
 			// --- close page wrapper ---
-			echo "</div>";
+			echo '</div>';
 		}
 
 		// --------------
@@ -1914,7 +2037,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$defaults = $this->default_settings();
 			$settings = $this->get_settings( false );
 
-			// --- output saved settings ---			
+			// --- output saved settings ---
 			if ( $this->debug ) {
 				echo "<br><b>Saved Settings:</b><br>";
 				print_r( $settings );
@@ -2009,9 +2132,10 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$this->scripts[] = $script;
 
 			// --- start settings form ---
+			// 1.2.0: remove unused prefix on settings tab name attribute
 			echo "<form method='post' id='settings-form'>";
 			echo "<input type='hidden' name='" . esc_attr( $namespace ) . "_update_settings' id='settings-action' value='yes'>";
-			echo "<input type='hidden' name='" . esc_attr( $args['settings'] ) . "_settingstab' id='settings-tab' value='" . esc_attr( $currenttab ) . "'>";
+			echo "<input type='hidden' name='settingstab' id='settings-tab' value='" . esc_attr( $currenttab ) . "'>";
 			wp_nonce_field( $args['slug'] . '_update_settings' );
 
 			// --- maybe set hidden debug input ---
@@ -2128,6 +2252,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- close settings form ---
 			echo "</form>";
+			
+			// --- enqueue settings resources ---
+			$this->settings_resources( $enqueued_media, $enqueued_color_picker );
+		}
+
+		// ------------------
+		// Settings Resources
+		// ------------------
+		// 1.2.3: added for standalone enqueueing of resources from table
+		function settings_resources( $media = true, $color_picker = true ) {
 
 			// --- number input step script ---
 			// 1.0.9: added to script array
@@ -2144,7 +2278,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- image selection script ---
 			// 1.1.7: added for image field type
-			if ( $enqueued_media ) {
+			if ( $media ) {
 				$confirm_remove = __( 'Are you sure you want to remove this image?' );
 				$script = "jQuery(function(){
 
@@ -2196,7 +2330,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			}
 
 			// --- color picker script ---
-			if ( $enqueued_color_picker ) {
+			if ( $color_picker ) {
 				$script = "jQuery(document).ready(function(){
 					if (jQuery('.color-picker').length) {jQuery('.color-picker').wpColorPicker();}
 				});";
@@ -2289,21 +2423,40 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			} else {
 
 				// TODO: add check if already Pro version ?
+				// (currently done by removing pro key/value pair in Pro code)
 				if ( isset( $option['pro'] ) && $option['pro'] ) {
 
 					// --- Pro version setting (teaser) ---
+					// 1.2.0: improved handling of upgrade links
 					$row .= '<td class="settings-input setting-pro">';
 					$upgrade_link = false;
-					if ( $args['hasplans'] || $args['hasaddons'] ) {
-						$upgrade_link = add_query_arg( 'page=', $args['slug'] . '-pricing', admin_url( 'admin.php' ) );
-						$target = '';
-					} elseif ( isset( $args['upgrade_link'] ) ) {
-						$upgrade_link = $args['upgrade_link'];
-						$target = ' target="_blank"';
+					if ( ( isset( $args['hasplans'] ) && $args['hasplans'] )
+					  || ( isset( $args['hasaddons'] ) && $args['hasaddons'] ) ) {
+						$upgrade_link = add_query_arg( 'page', $args['slug'] . '-pricing', admin_url( 'admin.php' ) );
+						$upgrade_target = '';
 					}
-					if ( $upgrade_link ) {
-						$row .= __( 'Available in Pro Version.' ) . '<br>';
-						$row .= '<a href="' . esc_url( $upgrade_link ) . '"' . $target . '>' . esc_html( __( 'Click Here to Upgrade!' ) ) . '</a>';
+					if ( isset( $args['upgrade_link'] ) ) {
+						$upgrade_link = $args['upgrade_link'];
+						$upgrade_target = !strstr( $upgrade_link, '/wp-admin/' ) ? ' target="_blank"' : '';
+					}
+					// 1.2.1: fix to check pro_link not upgrade_link
+					if ( isset( $args['pro_link'] ) ) {
+						$pro_link = $args['pro_link'];
+						$pro_target = !strstr( $pro_link, '/wp-admin/' ) ? ' target="_blank"' : '';
+					}
+					if ( $upgrade_link || $pro_link ) {
+						// 1.2.2: change text from Available in Pro
+						$row .= __( 'Premium Feature.' ) . '<br>';
+						if ( $upgrade_link ) {
+							$row .= '<a href="' . esc_url( $upgrade_link ) . '"' . $upgrade_target . '>' . esc_html( __( 'Upgrade Now' ) ) . '</a>';
+						}
+						if ( $upgrade_link && $pro_link ) {
+							$row .= ' | ';
+						}
+						if ( $pro_link ) {
+							// 1.2.2: change text from Pro details
+							$row .= '<a href="' . esc_url( $pro_link ) . '"' . $pro_target . '>' . esc_html( __( 'Details' ) ) . '</a>';
+						}
 					} else {
 						$row .= esc_html( __( 'Coming soon in Pro version!' ) );
 					}
@@ -2538,7 +2691,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 							$row .= ' ' . $option['suffix'];
 						}
 
-					} elseif ( 'text' == $type ) {
+					} elseif ( ( 'text' == $type ) || ( 'csv' == $type ) ) {
+
+						// 1.2.0: re-added missing csv field type
 
 						// --- text inputs ---
 						$class = 'setting-text';
@@ -2703,6 +2858,13 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// --- page styles ---
 			$styles[] = '#wrapbox {margin-right: 20px;}';
 
+			// --- plugin header styles ---
+			// 1.2.0: moved from plugin header section
+			// 1.2.3: remove underline from plugin icon spans
+			$styles[] = '.pluginlink, .pluginlink span {text-decoration:none;}';
+			$styles[] = '.smalllink {font-size:11px;}';
+			$styles[] = '.readme:hover {text-decoration:underline;}';
+
 			// --- settings tab styles ---
 			// 1.1.0: added max-width:100% to select input
 			$styles[] = '.settings-tab-button {display:inline-block; font-size:15px; padding:7px 14px; margin-right:20px; border-radius:7px;}';
@@ -2783,8 +2945,8 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// the below functions use the function name to grab and load the corresponding class method
 		// all function name suffixes here must be two words for the magic namespace grabber to work
 		// ie. _add_settings, because the namespace is taken from *before the second-last underscore*
-		if ( !function_exists( 'forcefield_get_forcefield_slug' ) ) {
-			function forcefield_get_forcefield_slug( $f ) {
+		if ( !function_exists( 'forcefield_get_namespace_from_function' ) ) {
+			function forcefield_get_namespace_from_function( $f ) {
 				return substr( $f, 0, strrpos( $f, '_', ( strrpos( $f, '_' ) - strlen( $f ) - 1 ) ) );
 			}
 		}
@@ -2795,7 +2957,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 2.3.0: added function for getting loader class instance
 		if ( !function_exists( 'forcefield_loader_instance' ) ) {
 			function forcefield_loader_instance() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 
 				return $GLOBALS[$namespace . '_instance'];
 			}
@@ -2807,7 +2969,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 2.3.0: added function for getting Freemius class instance
 		if ( !function_exists( 'forcefield_freemius_instance' ) ) {
 			function forcefield_freemius_instance() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 
 				return $GLOBALS[$namespace . '_freemius'];
 			}
@@ -2819,7 +2981,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 1.1.1: added function for getting plugin data
 		if ( !function_exists( 'forcefield_plugin_data' ) ) {
 			function forcefield_plugin_data() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->plugin_data();
@@ -2832,7 +2994,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 1.1.2: added function for getting plugin version
 		if ( !function_exists( 'forcefield_plugin_version' ) ) {
 			function forcefield_plugin_version() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->plugin_version();
@@ -2844,7 +3006,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// -----------------
 		if ( !function_exists( 'forcefield_pro_namespace' ) ) {
 			function forcefield_pro_namespace( $pronamespace ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->pro_namespace( $pronamespace );
 			}
@@ -2859,7 +3021,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// ------------
 		if ( !function_exists( 'forcefield_add_settings' ) ) {
 			function forcefield_add_settings() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->add_settings();
 			}
@@ -2870,7 +3032,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// ------------
 		if ( !function_exists( 'forcefield_default_settings' ) ) {
 			function forcefield_default_settings( $key = false ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->default_settings( $key );
@@ -2882,7 +3044,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// -----------
 		if ( !function_exists( 'forcefield_get_options' ) ) {
 			function forcefield_get_options() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->options;
@@ -2894,7 +3056,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// -----------
 		if ( !function_exists( 'forcefield_get_setting' ) ) {
 			function forcefield_get_setting( $key, $filter = true ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->get_setting( $key, $filter );
@@ -2907,7 +3069,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 1.0.9: added missing get_settings prefixed function
 		if ( !function_exists( 'forcefield_get_settings' ) ) {
 			function forcefield_get_settings( $filter = true ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->get_settings( $filter );
@@ -2919,7 +3081,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// --------------
 		if ( !function_exists( 'forcefield_reset_settings' ) ) {
 			function forcefield_reset_settings() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->reset_settings();
 			}
@@ -2930,7 +3092,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// ---------------
 		if ( !function_exists( 'forcefield_update_settings' ) ) {
 			function forcefield_update_settings() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->update_settings();
 			}
@@ -2941,7 +3103,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// ---------------
 		if ( !function_exists( 'forcefield_delete_settings' ) ) {
 			function forcefield_delete_settings() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->delete_settings();
 			}
@@ -2954,7 +3116,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// -----------
 		if ( !function_exists( 'forcefield_message_box' ) ) {
 			function forcefield_message_box( $message, $echo = false ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 
 				return $instance->message_box( $message, $echo );
@@ -2966,7 +3128,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// ---------------
 		if ( !function_exists( 'forcefield_settings_header' ) ) {
 			function forcefield_settings_header() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->settings_header();
 			}
@@ -2977,7 +3139,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// -------------
 		if ( !function_exists( 'forcefield_settings_page' ) ) {
 			function forcefield_settings_page() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->settings_page();
 			}
@@ -2989,7 +3151,7 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 1.0.9: added for standalone setting table output
 		if ( !function_exists( 'forcefield_settings_table' ) ) {
 			function forcefield_settings_table() {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->settings_table();
 			}
@@ -3001,9 +3163,21 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 		// 1.0.9: added for standalone setting row output
 		if ( !function_exists( 'forcefield_settings_row' ) ) {
 			function forcefield_settings_row( $option, $setting ) {
-				$namespace = forcefield_get_forcefield_slug( __FUNCTION__ );
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
 				$instance = $GLOBALS[$namespace . '_instance'];
 				$instance->settings_row( $option, $setting );
+			}
+		}
+
+		// ------------------
+		// Settings Resources
+		// ------------------
+		// 1.2.3: added for separate enqueueing of resources from table
+		if ( !function_exists( 'forcefield_settings_resources' ) ) {
+			function forcefield_settings_resources() {
+				$namespace = forcefield_get_namespace_from_function( __FUNCTION__ );
+				$instance = $GLOBALS[$namespace . '_instance'];
+				$instance->settings_resources();
 			}
 		}
 
@@ -3062,6 +3236,33 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // CHANGELOG
 // =========
 
+// == 1.2.3 ==
+// - added separate enqueueing of settings resources
+// - remove underline from plugin link icon spans
+// - skip welcome message output if empty
+
+// == 1.2.2 ==
+// - merge in plugin links instead of using array_unshift
+// - update plugin repository rating URL
+// - remove duplication of addons link
+// - no notice boxer if adminsanity notices loaded
+// - change upgrade texts
+
+// == 1.2.1 ==
+// - added filters for premium and addons init
+// - fix overriding of plan arg to free
+// - add check if premium already installed
+// - fix namespace typo in add settings action
+
+// == 1.2.0 ==
+// - fix missing CSV field type row output condition
+// - fix to saving of current settings tab (if any)
+// - improved handling of Pro Upgrade and Details links
+
+// == 1.1.9 ==
+// - fix to allow saving of zero value
+// - added filters for plugin page settings header sections
+
 // == 1.1.8 ==
 // - fix to number step if no min or max value
 
@@ -3069,8 +3270,8 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // - added media library upload image field type
 // - added color picker and color picker alpha field types
 // - automatically remove unused settings tabs
-// - fix to text field attribute quoting 
-// - fix to not escape number step button function 
+// - fix to text field attribute quoting
+// - fix to not escape number step button function
 // - remove FILTER_VALIDATE_URL from URL saving (not working)
 
 // == 1.1.6 ==
@@ -3168,5 +3369,4 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // -----------------
 // Development TODOs
 // -----------------
-// - check Freemius upgrade/addon URLs
 // - use sanitize text field on textarea ?

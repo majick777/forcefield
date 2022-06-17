@@ -2,16 +2,18 @@
 
 /*
 Plugin Name: ForceField
-Plugin URI: http://wordquest.org/plugins/forcefield/
+Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Strong and Flexible Access, User Action, API and Role Protection
-Version: 1.0.1
-Author URI: http://wordquest.org/
+Version: 1.0.2
+Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
 */
 
-if ( !function_exists( 'add_action' ) ) {exit;}
+if ( !defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 
 // ==================
@@ -68,9 +70,12 @@ if ( !function_exists( 'add_action' ) ) {exit;}
 // + add WP CLI commands for clearing IP blocklists
 // ? turn XML RPC method disable settings into on/off switches ?
 // ? handle IPv6 blocklist range checking ?
-// - Idea: option to require user to be logged in for blog signup ?
-// - Idea: single device sign-ons (force logout other sessions)
-// - Idea: obscure all stylesheet and resource URL paths
+
+// Development Ideas
+// -----------------
+// - option to require user to be logged in for blog signup ?
+// - single device sign-ons (force logout all other sessions)
+// - obscure all stylesheet and resource URL paths? 
 
 
 // -----------------------
@@ -185,6 +190,7 @@ include_once FORCEFIELD_DIR . '/forcefield-auth.php';
 include_once FORCEFIELD_DIR . '/forcefield-block.php';
 
 // --- Vulnerability Checker Module ---
+// 1.0.1: temporarily removed for retesting
 if ( file_exists( FORCEFIELD_DIR . '/forcefield-vuln.php' ) ) {
 	include_once FORCEFIELD_DIR . '/forcefield-vuln.php';
 }
@@ -680,7 +686,9 @@ $instance = new forcefield_loader( $args );
 // ----------------------------
 umask( 0000 );
 $debugdir = FORCEFIELD_DIR . '/debug';
-if ( !is_dir( $debugdir ) ) {wp_mkdir_p( $debugdir );}
+if ( !is_dir( $debugdir ) ) {
+	wp_mkdir_p( $debugdir );
+}
 if ( is_dir($debugdir ) ) {
 
 	$debughtaccess = $debugdir."/.htaccess";
@@ -688,8 +696,11 @@ if ( is_dir($debugdir ) ) {
 
 	// --- check for existing htaccess file and content match ---
 	$writehtaccess = false;
-	if ( !file_exists( $debughtaccess ) ) {$writehtaccess = true;}
-	elseif ( file_get_contents( $debughtaccess ) != $htaccess ) {$writehtaccess = true;}
+	if ( !file_exists( $debughtaccess ) ) {
+		$writehtaccess = true;
+	} elseif ( file_get_contents( $debughtaccess ) != $htaccess ) {
+		$writehtaccess = true;
+	}
 
 	if ( $writehtaccess ) {
 
@@ -1160,6 +1171,7 @@ function forcefield_filtered_error( $error, $errormessage, $status = false, $err
 // -----------------------------------------
 add_filter( 'login_errors', 'forcefield_login_error_message' );
 function forcefield_login_error_message( $message ) {
+	// TODO: allow for some hints but not others ?
 	$removehints = forcefield_get_setting( 'login_nohints' );
 	if ( 'yes' == $removehints ) {
 		return '';
@@ -1207,7 +1219,7 @@ function forcefield_get_intervals( $schedule = array() ) {
 		'2hours'		=> array( 'interval' => 7200, 'display' => __( 'Every 2 Hours', 'forcefield' ) ),
 		'3hours'		=> array( 'interval' => 10800, 'display' => __( 'Every 3 Hours', 'forcefield' ) ),
 		'6hours'		=> array( 'interval' => 21600, 'display' => __( 'Every 6 Hours', 'forcefield' ) ),
-		'twicedaily'		=> array( 'interval' => 43200, 'display' => __( 'Twice Daily', 'forcefield' ) ),
+		'twicedaily'	=> array( 'interval' => 43200, 'display' => __( 'Twice Daily', 'forcefield' ) ),
 		'daily'			=> array( 'interval' => 86400, 'display' => __( 'Daily', 'forcefield' ) ),
 	);
 

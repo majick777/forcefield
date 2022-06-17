@@ -4,7 +4,7 @@
 // === WORDQUEST PLUGIN HELPER ===
 // ===============================
 
-$wordquestversion = '1.7.8';
+$wordquestversion = '1.7.9';
 
 // === Notes ===
 // - Changelog at end of this file
@@ -1655,14 +1655,16 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
  $wqfunctions[$funcname] = function() {
 
  	// --- wordquest admin submenu icon and styling fixes ---
+	// 1.7.9: change margin-left to padding-left on link
+	// 1.7.9: added margin left and top to icon
 	echo "<script>function wordquestsubmenufix(slug,iconurl,current) {
 		jQuery('li a').each(function() {
 			position = this.href.indexOf('admin.php?page='+slug);
 			if (position > -1) {
 				linkref = this.href.substr(position);
-				jQuery(this).css('margin-left','10px');
+				jQuery(this).css('padding-left','10px');
 				if (linkref == 'admin.php?page='+slug) {
-					jQuery('<img src=\"'+iconurl+'\" style=\"float:left;\">').insertBefore(this);
+					jQuery('<img src=\"'+iconurl+'\" style=\"float:left;margin-left:3px;margin-top:3px;\">').insertBefore(this);
 					jQuery(this).css('margin-top','-3px');
 				} else {if (current == 1) {
 					if (linkref == 'admin.php?page='+slug+'-account') {jQuery(this).addClass('current');}

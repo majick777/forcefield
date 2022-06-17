@@ -307,7 +307,7 @@ function forcefield_blocklist_clear_table() {
 // Check IP in Blocklist
 // ---------------------
 // 0.9.1: check if IP is in blocklist table
-function forcefield_blocklist_check_ip($ip) {
+function forcefield_blocklist_check_ip( $ip ) {
 	$columns = array( 'label', 'transgressions', 'last_access_at' );
 	return forcefield_blocklist_get_records( $columns, $ip );
 }
@@ -316,7 +316,7 @@ function forcefield_blocklist_check_ip($ip) {
 // Get IP Blocklist Records
 // ------------------------
 // 0.9.1: use blocklist table
-function forcefield_blocklist_get_records( $columns=array(), $ip = false, $reason = false, $noexpired = true ) {
+function forcefield_blocklist_get_records( $columns = array(), $ip = false, $reason = false, $noexpired = true ) {
 
 	global $wpdb, $forcefield;
 
@@ -672,7 +672,15 @@ function forcefield_blocklist_clear() {
 	
 	// --- check admin referer ---
 	// 0.9.6: fix to referrer typo
-	check_admin_referer( 'forcefield-clear' );
+	// 1.0.2: alert with nonce expired message
+	// check_admin_referer( 'forcefield-clear' );
+	$nonce = $_REQUEST['nonce'];
+	$checknonce = wp_verify_nonce( $nonce, 'forcefield-clear' );
+	if ( !$checknonce ) {
+		$message = __( 'Nonce expired. Please reload the page and try again.', 'forcefield' );
+		forcefield_alert_message( $message );
+		exit;
+	}
 
 	// --- check blocklist table ---
 	$check = forcefield_blocklist_check_table();
