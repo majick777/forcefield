@@ -35,7 +35,14 @@
 // 1.0.1: added for WP 5.6+ Application Passwords feature
 add_filter( 'wp_is_application_passwords_available', 'forcefield_app_passwords_disable' );
 function forcefield_app_passwords_disable( $enabled ) {
-	if ( 'yes' == forcefield_get_setting( 'app_passwords_disable' ) ) {
+	// 1.0.3: fix for when called before plugins_loaded hook
+	if ( function_exists( 'forcefield_get_setting' ) ) {
+		$disabled = forcefield_get_setting( 'app_passwords_disable' );
+	} else {
+		$settings = apply_filters( 'forcefield_settings', get_option( 'forcefield' ) );
+		$disabled = apply_filters( 'forcefield_app_passwords_disable', $settings['app_passwords_disable'] );
+	}
+	if ( 'yes' == $disabled ) {
 		$enabled = false;
 	}
 	return $enabled;

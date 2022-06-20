@@ -5,7 +5,7 @@ Plugin Name: ForceField
 Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Strong and Flexible Access, User Action, API and Role Protection
-Version: 1.0.2
+Version: 1.0.3
 Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
