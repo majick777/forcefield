@@ -50,7 +50,8 @@ function forcefield_superadmin_validation() {
 	$user = wp_get_current_user();
 	$userid = $user->data->ID;
 	$userlogin = $user->data->user_login;
-	$usermail = $user->data->user_email;
+	// 1.0.3: fix to variable typo usermail
+	$useremail = $user->data->user_email;
 
 	// --- get login settings ---
 	if ( !is_multisite() ) {
@@ -60,18 +61,20 @@ function forcefield_superadmin_validation() {
 	$blocksuper = forcefield_get_setting( 'super_block' );
 
 	// --- check for superadmin role ---
-	if ( ( 'yes' == $blocksuper ) && ( count( $superadmins ) > 0 ) && is_super_admin( $userid ) ) {
+	if ( ( 'yes' === (string) $blocksuper ) && ( count( $superadmins ) > 0 ) && is_super_admin( $userid ) ) {
 
 		// --- get whitelist ---
 		$whitelisted = array();
 		$whitelist = forcefield_get_setting( 'super_whitelist' );
 		if ( strstr( $whitelist, ',' ) ) {
 			$whitelisted = explode( ",", $whitelist );
-			foreach ( $whitelisted as $i => $whitelisted ) {
-				$whitelisted[$i] = trim( $whitelisted );
+			// 1.0.3: fix to duplicate variable name usage
+			foreach ( $whitelisted as $i => $wlisted ) {
+				$whitelisted[$i] = trim( $wlisted );
 			}
 		} elseif ( '' != trim( $whitelist ) ) {
-			$whitelisted = array( trim( $whitelisted ) );
+			// 1.0.3: fix to mismatched variable name
+			$whitelisted = array( trim( $whitelist ) );
 		}
 
 		// --- check if in whitelist ---
@@ -120,27 +123,28 @@ function forcefield_superadmin_validation() {
 				// 1.0.1: added user email to message
 				$blogname = get_bloginfo( 'name' );
 				$siteurl = site_url();
-				$body = 'ForceField plugin has blocked an unwhitelisted super-admin login'."\n";
+				$body = 'ForceField plugin has blocked an unwhitelisted super-admin login' . "\n";
 				$body .= 'to WordPress site ' . $blogname . ' (' . $siteurl . ')' . "\n\n";
 				$body .= 'Username Blocked: "' . $userlogin . '" (' . $useremail . ')' . "\n\n";
 				$body .= 'If this username is familiar, add it to your whitelist to stop further alerts.' . "\n";
 				$body .= 'But if it is unfamiliar, your site security may be compromised.' . "\n\n";
 
 				// --- maybe add block action info ---
-				if ( 'delete' == $blockaction ) {
+				if ( 'delete' === (string) $blockaction ) {
 					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
 					$body .= 'the user "' . $userlogin . '" was automatically deleted.' . "\n\n";
-				} elseif ( 'revoke' == $blockaction ) {
+				} elseif ( 'revoke' === (string) $blockaction ) {
 					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
 					$body .= 'the super-admin role has been revoked from user "' . $userlogin . '.' . "\n\n";
-				} elseif ( 'demote' == $blockaction ) {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the user "' . $userlogin . ' has been demoted to a subscriber.'."\n\n";
+				} elseif ( 'demote' === (string) $blockaction ) {
+					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
+					$body .= 'the user "' . $userlogin . ' has been demoted to a subscriber.' . "\n\n";
 				}
 
 				// --- add dump user object ---
 				$body .= 'Below is a dump of the user object for "' . $userlogin . '"' . "\n";
-				$body .= '----------'."\n";
+				$body .= '----------' . "\n";
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_print_r
 				$body .= print_r( $user, true );
 
 				// 1.0.1: added email subject and body filtering
@@ -187,13 +191,14 @@ function forcefield_administrator_validation() {
 	$user = wp_get_current_user();
 	$userid = $user->data->ID;
 	$userlogin = $user->data->user_login;
-	$usermail = $user->data->user_email;
+	// 1.0.3: fix to variable typo usermail
+	$useremail = $user->data->user_email;
 
 	// --- get login settings ---
 	$blockadmins = forcefield_get_setting( 'admin_block' );
 
 	// --- check for administrator role ---
-	if ( ( 'yes' == $blockadmins ) && in_array( 'administrator', (array)$user->roles ) ) {
+	if ( ( 'yes' === (string) $blockadmins ) && in_array( 'administrator', (array) $user->roles ) ) {
 
 		// --- get whitelist ---
 		$whitelisted = array();
@@ -215,10 +220,10 @@ function forcefield_administrator_validation() {
 			// 0.9.6: change admin_autodelete to admin_blockaction setting
 			$adminemail = forcefield_get_setting( 'admin_email' );
 			$alertemail = forcefield_get_setting( 'admin_alert' );
-			$blockaction = forcefield_get_setting('admin_blockaction');
+			$blockaction = forcefield_get_setting( 'admin_blockaction' );
 
 			// ---- handle block action ---
-			if ( 'delete' == $blockaction ) {
+			if ( 'delete' === (string) $blockaction ) {
 
 				// --- delete the user completely ---
 				if ( !function_exists( 'wp_delete_user' ) ) {
@@ -226,12 +231,12 @@ function forcefield_administrator_validation() {
 				}
 				wp_delete_user( $userid );
 
-			} elseif ( 'revoke' == $blockaction ) {
+			} elseif ( 'revoke' === (string) $blockaction ) {
 
 				// --- remove administrator role ---
 				$user->remove_role( 'administrator' );
 
-			} elseif ( 'demote' == $blockaction ) {
+			} elseif ( 'demote' == (string) $blockaction ) {
 
 				// --- remove all roles and add subscriber only ---
 				foreach ( $user->roles as $role ) {
@@ -242,7 +247,7 @@ function forcefield_administrator_validation() {
 			}
 
 			// --- maybe send alert email ---
-			if ( ( 'yes' == $alertemail ) && ( '' != $adminemail ) ) {
+			if ( ( 'yes' === (string) $alertemail ) && ( '' != $adminemail ) ) {
 
 				// --- set mail from name ---
 				add_filter( 'wp_mail_from_name', 'forcefield_email_from_name' );
@@ -261,21 +266,22 @@ function forcefield_administrator_validation() {
 				$body .= 'But if it is unfamiliar, your site security may be compromised.' . "\n\n";
 
 				// --- maybe add block action info ---
-				if ( 'delete' == $blockaction ) {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the user "' . $userlogin . '" was automatically deleted.'."\n\n";
-				} elseif ($blockaction == 'revoke') {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the administrator role has been revoked from user "'.$userlogin.'.'."\n\n";
-				} elseif ($blockaction == 'demote') {
-					$body .= 'Additionally, according to your ForceField plugin settings,'."\n";
-					$body .= 'the user "'.$userlogin.' has been demoted to a subscriber.'."\n\n";
+				if ( 'delete' === (string) $blockaction ) {
+					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
+					$body .= 'the user "' . $userlogin . '" was automatically deleted.' . "\n\n";
+				} elseif ( 'revoke' === (string) $blockaction ) {
+					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
+					$body .= 'the administrator role has been revoked from user "' . $userlogin . '.' . "\n\n";
+				} elseif ( 'demote' === (string) $blockaction ) {
+					$body .= 'Additionally, according to your ForceField plugin settings,' . "\n";
+					$body .= 'the user "' . $userlogin . ' has been demoted to a subscriber.' . "\n\n";
 				}
 
 				// --- add dump user object ---
 				// 1.0.1: fix to user_login variable name
-				$body .= 'Below is a dump of the user object for "' . $userlogin . '"'."\n";
-				$body .= '----------'."\n";
+				$body .= 'Below is a dump of the user object for "' . $userlogin . '"' . "\n";
+				$body .= '----------' . "\n";
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions
 				$body .= print_r( $user, true );
 
 				// 1.0.1: added email subject and body filtering
@@ -297,7 +303,7 @@ function forcefield_administrator_validation() {
 			}
 
 			// --- add IP address to blocklist ---
-			forcefield_blocklist_record_ip('super_bad');
+			forcefield_blocklist_record_ip( 'super_bad' );
 
 			// --- clear the login cache ---
 			wp_cache_delete( $userid, 'users' );
@@ -326,11 +332,11 @@ function forcefield_check_token( $context, $getexpiry = false ) {
 	// --- validate IP address to IP key ---
 	$iptype = forcefield_get_ip_type( $forcefield['ip'] );
 	// 0.9.4: allow for localhost IP type
-	if ( 'localhost' == $iptype ) {
+	if ( 'localhost' === (string) $iptype ) {
 		$ipaddress = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip4' == $iptype ) {
+	} elseif ( 'ip4' === (string) $iptype ) {
 		$ipaddress = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip6' == $iptype ) {
+	} elseif ( 'ip6' === (string) $iptype ) {
 		$ipaddress = str_replace( ':', '--', $forcefield['ip'] );
 	} else {
 		return false;
@@ -340,7 +346,7 @@ function forcefield_check_token( $context, $getexpiry = false ) {
 	$token = array();
 	$transientid = $context . '_token_' . $ipaddress;
 	if ( $debug ) {
-		echo "Transient ID: " . $transientid . PHP_EOL;
+		echo "<!-- Transient ID: " . esc_html( $transientid ) . " -->" . PHP_EOL;
 	}
 	$tokenvalue = get_transient( $transientid );
 	if ( $tokenvalue ) {
@@ -352,16 +358,17 @@ function forcefield_check_token( $context, $getexpiry = false ) {
 		$timeout = forcefield_get_transient_timeout( $transientid );
 		if ( $timeout ) {
 			$time = time();
-			if  ($debug ) {
-				echo "Current Time: " . $time . PHP_EOL;
-				echo "Expiry Time: " . $timeout . PHP_EOL;
+			if ( $debug ) {
+				echo "<!-- Current Time: " . esc_html( $time ) . " -->" . PHP_EOL;
+				echo "<!-- Expiry Time: " . esc_html( $timeout ) . " -->" . PHP_EOL;
 			}
 			$expiry = $timeout - $time;
 			$token['expiry'] = $expiry;
 		}
 	}
 	if ( $debug ) {
-		echo "Token: " . print_r( $token, true );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions
+		echo "<!-- Token: " . esc_html( print_r( $token, true ) ) . " -->";
 	}
 	return $token;
 }
@@ -449,7 +456,20 @@ add_action( 'wp_ajax_nopriv_forcefield_buddypress', 'forcefield_output_token' );
 // 1.0.1: remove argument and check context from action
 function forcefield_output_token() {
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$action = $_REQUEST['action'];
+	// 1.0.4: added validation of action possibilities
+	$actions = array(
+		'forcefield_login',
+		'forcefield_register',
+		'forcefield_signup',
+		'forcefield_lostpass',
+		'forcefield_comment',
+		'forcefield_buddypress',
+	);
+	if ( !in_array( $action, $actions ) ) {
+		exit;
+	}
 	$context = str_replace( 'forcefield_', '', $action );
 
 	$token = forcefield_create_token( $context );
@@ -475,7 +495,8 @@ function forcefield_output_token() {
 			echo "<script>setTimeout(function() {window.location.reload();}, " . esc_js( $cycle ) . ");</script>";
 		}
 	} else {
-		echo __( 'Error. No Token was generated.', 'forcefield' );
+		// 1.0.4: added missing esc_html wrapper
+		echo esc_html( __( 'Error. No Token was generated.', 'forcefield' ) );
 	}
 	exit;
 }
@@ -493,7 +514,7 @@ function forcefield_create_token( $context ) {
 	// --- check token setting for context ----
 	$tokenize = forcefield_get_setting( $context . '_token' );
 	if ( $debug ) {
-		echo "<!-- Tokenize? " . $tokenize . " (" . $context . ") -->";
+		echo "<!-- Tokenize? " . esc_html( $tokenize ) . " (" . esc_html( $context ) . ") -->";
 	}
 	if ( 'yes' != $tokenize ) {
 		return false;
@@ -505,7 +526,8 @@ function forcefield_create_token( $context ) {
 	$token = forcefield_check_token( $context, true );
 	if ( isset( $token['value'] ) ) {
 		if ( $debug ) {
-			echo "<!-- Existing Token: " . print_r( $token, true ) . " -->";
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions
+			echo "<!-- Existing Token: " . esc_html( print_r( $token, true ) ) . " -->";
 		}
 		$tokenvalue = $token['value'];
 	} else {
@@ -515,20 +537,20 @@ function forcefield_create_token( $context ) {
 	// --- validate IP address and make IP key ---
 	// 0.9.4: allow for localhost IP type
 	$iptype = forcefield_get_ip_type( $forcefield['ip'] );
-	if ( 'localhost' == $iptype ) {
+	if ( 'localhost' === (string) $iptype ) {
 		$ip = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip4' == $iptype ) {
+	} elseif ( 'ip4' === (string) $iptype ) {
 		$ip = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip6' == $iptype ) {
+	} elseif ( 'ip6' === (string) $iptype ) {
 		$ip = str_replace( ':', '--', $forcefield['ip'] );
 	} else {
 		if ( $debug ) {
-			echo "<!-- No token generated for IP type '" . $iptype . "' -->";
+			echo "<!-- No token generated for IP type '" . esc_html( $iptype ) . "' -->";
 		}
 		return false;
 	}
 	if ( $debug ) {
-		echo "<!-- IP: " . $ip . " -->";
+		echo "<!-- IP: " . esc_html( $ip ) . " -->";
 	}
 
 	// --- get and set token expiry length ---
@@ -544,7 +566,7 @@ function forcefield_create_token( $context ) {
 	if ( $expirytime < 30 ) {
 		$expirytime = 30;
 	}
-	if ( ( 'comment' == $context ) && ( $expirytime < 300 ) ) {
+	if ( ( 'comment' === (string) $context ) && ( $expirytime < 300 ) ) {
 		$expirytime = 300;
 	}
 
@@ -567,11 +589,11 @@ function forcefield_delete_token( $context ) {
 	// --- validate IP address and make IP key ---
 	// 1.0.1: use check IP type function for consistency
 	$iptype = forcefield_get_ip_type( $forcefield['ip'] );
-	if ( 'localhost' == $iptype ) {
+	if ( 'localhost' === (string) $iptype ) {
 		$ip = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip4' == $iptype ) {
+	} elseif ( 'ip4' === (string) $iptype ) {
 		$ip = str_replace( '.', '-', $forcefield['ip'] );
-	} elseif ( 'ip6' == $iptype ) {
+	} elseif ( 'ip6' === (string) $iptype ) {
 		$ip = str_replace( ':', '--', $forcefield['ip'] );
 	} else {
 		return false;
@@ -616,7 +638,7 @@ function forcefield_xmlrpc_authentication( $user, $username, $password ) {
 	$authblock = forcefield_get_setting( 'xmlrpc_authblock' );
 	$authban = forcefield_get_setting( 'xmlrpc_authban' );
 
-	if ( 'yes' == $authban ) {
+	if ( 'yes' === (string) $authban ) {
 
 		// --- ban this IP for XML RPC authentication violation ---
 		forcefield_blocklist_record_ip( 'xmlrpc_login' );
@@ -624,7 +646,7 @@ function forcefield_xmlrpc_authentication( $user, $username, $password ) {
 		do_action( 'xmlrpc_login_banned' );
 		return forcefield_filtered_error( 'xmlrpc_ban', $errormessage );
 
-	} elseif ( 'yes' == $authblock ) {
+	} elseif ( 'yes' === (string) $authblock ) {
 
 		// --- block this XML RPC attempt ---
 		// 0.9.1: record anyway so a changed ban setting can take effect
@@ -650,17 +672,14 @@ function forcefield_xmlrpc_authentication( $user, $username, $password ) {
 	// --- check for SSL connection requirement ---
 	$requiressl = forcefield_get_setting( 'xmlrpc_requiressl' );
 	// 0.9.8: honour require SSL constant override
-	if ( defined('FORCEFIELD_REQUIRE_SSL' )) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
+		// 1.0.4: simplify logic to single line
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
-	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
 		add_filter( 'xmlrpc_login_error', 'forcefield_xmlrpc_require_ssl_message' );
 		// note: we need to return an error here so that the xmlrpc_login_error filter is called
-		$errormessage = __( 'XML RPC requires SSL Connection.','forcefield' );
+		$errormessage = __( 'XML RPC requires SSL Connection.', 'forcefield' );
 		return forcefield_filtered_error( 'xmlrpc_ssl_required', $errormessage );
 	}
 
@@ -671,7 +690,7 @@ function forcefield_xmlrpc_authentication( $user, $username, $password ) {
 // XML RPC Error Message (Banned)
 // ------------------------------
 function forcefield_xmlrpc_error_message_banned( $error ) {
-	$errormessage = __( 'Access denied. XML RPC authentication is disabled.','forcefield' );
+	$errormessage = __( 'Access denied. XML RPC authentication is disabled.', 'forcefield' );
 	$errormessage = apply_filters( 'forcefield_error_message_xmlrpc_banned', $errormessage );
 	$status = 405; // HTTP 405: Method Not Allowed
 	return new IXR_Error( $status, $errormessage );
@@ -680,7 +699,7 @@ function forcefield_xmlrpc_error_message_banned( $error ) {
 // -------------------------------
 // XML RPC Error Message (Blocked)
 // ------------------------------
-function forcefield_xmlrpc_error_message_blocked($error) {
+function forcefield_xmlrpc_error_message_blocked( $error ) {
 	$errormessage = __( 'Access denied. XML RPC authentication is disabled.', 'forcefield' );
 	$errormessage = apply_filters( 'forcefield_error_message_xmlrpc_blocked', $errormessage );
 	$status = 405; // HTTP 405: Method Not Allowed
@@ -738,7 +757,7 @@ function forcefield_login_validate( $user, $username, $password ) {
 		}
 
 		// --- check for admin role ---
-		if ( in_array( 'administrator', (array)$checkuser->roles ) ) {
+		if ( in_array( 'administrator', (array) $checkuser->roles ) ) {
 
 			// --- add a record of failed admin login attempt ---
 			$transgressions = forcefield_blocklist_record_ip( 'admin_fail' );
@@ -755,21 +774,18 @@ function forcefield_login_validate( $user, $username, $password ) {
 	}
 
 	// --- return for existing errors ---
-    if ( !$username || !$password || is_wp_error( $user ) ) {
-    	return $user;
-    }
+	if ( !$username || !$password || is_wp_error( $user ) ) {
+		return $user;
+	}
 
 	// --- maybe require SSL connection to login ---
 	$requiressl = forcefield_get_setting( 'login_requiressl' );
 	// 0.9.8: allow for constant override to prevent self-lockout
 	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+		// 1.0.4: simplify logic to single line
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
-	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
 		// --- redirect if not secure ---
 		add_filter( 'secure_auth_redirect', '__return_true' );
 		auth_redirect();
@@ -786,7 +802,7 @@ function forcefield_login_validate( $user, $username, $password ) {
 		// --- check ban setting ---
 		// 0.9.1: separate general no referer recording
 		$norefban = forcefield_get_setting( 'blocklist_norefban' );
-		if ( 'yes' == $norefban ) {
+		if ( 'yes' === (string) $norefban ) {
 			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
 			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
 			if ( $blocked ) {
@@ -796,7 +812,7 @@ function forcefield_login_validate( $user, $username, $password ) {
 
 		// --- check block setting ---
 		$norefblock = forcefield_get_setting( 'login_norefblock' );
-		if ( 'yes' == $norefblock ) {
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -808,26 +824,30 @@ function forcefield_login_validate( $user, $username, $password ) {
 	}
 
 	// --- login form field to check token ---
-	if ( isset( $POST['log'] ) && isset( $_POST['pwd'] ) ) {
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
+	// 1.0.4: fix to variable typo (POST)
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
+	if ( isset( $_POST['log'] ) && isset( $_POST['pwd'] ) ) {
 
 		$tokenize = forcefield_get_setting( 'login_token' );
-		if ( 'yes' != $tokenize ) {
+		if ( 'yes' !== (string) $tokenize ) {
 			return $user;
 		}
 
 		// --- maybe record the IP if missing the token form field ---
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( !isset( $_POST['auth_token_login'] ) ) {
 
 			// --- record no token ---
 			// 0.9.1: separate instaban and no token recording
 			$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-			if ( 'yes' == $recordnotoken ) {
+			if ( 'yes' === (string) $recordnotoken ) {
 				forcefield_blocklist_record_ip( 'no_token' );
 			}
 
 			// --- check ban setting ---
 			$instaban = forcefield_get_setting( 'login_notokenban' );
-			if ( 'yes' == $instaban ) {
+			if ( 'yes' === (string) $instaban ) {
 				forcefield_blocklist_record_ip( 'no_login_token' );
 			}
 
@@ -841,7 +861,8 @@ function forcefield_login_validate( $user, $username, $password ) {
 			// --- sanitize posted token ---
 			// 0.9.9: added check for valid token
 			// 1.0.0: fix to variable posted and preg_match check
-			$authtoken = $_POST[ 'auth_token_login' ];
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$authtoken = $_POST['auth_token_login'];
 			$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 			if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 				do_action( 'forcefield_login_invalid' );
@@ -874,7 +895,7 @@ function forcefield_login_validate( $user, $username, $password ) {
 			// --- fail, token is a mismatch ---
 			// 0.9.1: record general token usage failure
 			$recordbadtokens = forcefield_get_setting( 'blocklist_badtoken' );
-			if ('yes' == $recordbadtokens ) {
+			if ( 'yes' === (string) $recordbadtokens ) {
 				forcefield_blocklist_record_ip( 'bad_token' );
 			}
 
@@ -907,8 +928,8 @@ function forcefield_login_validate( $user, $username, $password ) {
 		if ( is_multisite() && is_super_admin( $checkuser->ID ) ) {
 			forcefield_blocklist_delete_record( false, 'super_fail' );
 		}
-		if ( in_array( 'administrator', (array)$checkuser->roles ) ) {
-			forcefield_blocklist_delete_record(false, 'admin_fail');
+		if ( in_array( 'administrator', (array) $checkuser->roles ) ) {
+			forcefield_blocklist_delete_record( false, 'admin_fail' );
 		}
 		// TODO: maybe do similar for other significant roles (eg. editor?)
 	}
@@ -944,24 +965,25 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 	}
 
 	// --- maybe require SSL connection for registration ---
-	$requiressl = forcefield_get_setting('register_requiressl');
+	$requiressl = forcefield_get_setting( 'register_requiressl' );
 	// 0.9.8: honour require SSL constant override
-	if (defined('FORCEFIELD_REQUIRE_SSL')) {
-		if ((bool)FORCEFIELD_REQUIRE_SSL) {$requiressl = 'yes';} else {$requiressl = '';}
+	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
 		// note: compressed version of auth_redirect function
+		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
-			wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
 
 	// --- check for empty referer field ---
 	// 0.9.7: added isset check as may not be set if empty
-	if ( !isset($_SERVER['HTTP_REFERER'] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
+	if ( !isset( $_SERVER['HTTP_REFERER'] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
 
 		do_action( 'forcefield_register_noreferer' );
 		do_action( 'forcefield_no_referer' );
@@ -969,7 +991,7 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		// --- record no referer ---
 		// 0.9.1: separate general no referer recording
 		$norefban = forcefield_get_setting( 'blocklist_norefban' );
-		if ( 'yes' == $norefban ) {
+		if ( 'yes' === (string) $norefban ) {
 			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
 			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
 			if ( $blocked ) {
@@ -978,8 +1000,8 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		}
 
 		// --- check block setting ---
-		$norefblock = forcefield_get_setting('register_norefblock');
-		if ( 'yes' == $norefblock ) {
+		$norefblock = forcefield_get_setting( 'register_norefblock' );
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -992,25 +1014,26 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 	}
 
 	// --- check tokenizer setting ---
-    $tokenize = forcefield_get_setting( 'register_token' );
-	if ( 'yes' != $tokenize ) {
+	$tokenize = forcefield_get_setting( 'register_token' );
+	if ( 'yes' !== (string) $tokenize ) {
 		return $errors;
 	}
 
 	// --- check the token field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( !isset( $_POST['auth_token_register'] ) ) {
 
 		// --- record no token ---
 		// 0.9.1: separate token and register token recording
 		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-		if ( 'yes' == $recordnotoken ) {
+		if ( 'yes' === (string) $recordnotoken ) {
 			forcefield_blocklist_record_ip( 'no_token' );
 		}
 
 		// --- check ban setting ---
 		$instaban = forcefield_get_setting( 'register_notokenban' );
-		if ( 'yes' == $instaban ) {
-			forcefield_blocklist_record_ip('no_register_token');
+		if ( 'yes' === (string) $instaban ) {
+			forcefield_blocklist_record_ip( 'no_register_token' );
 		}
 
 		do_action( 'forcefield_register_notoken' );
@@ -1024,6 +1047,7 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		// --- sanitize posted token ---
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$authtoken = $_POST['auth_token_register'];
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
@@ -1079,7 +1103,7 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 
 	}
 
-    return $errors;
+	return $errors;
 }
 
 // ------------------------
@@ -1111,24 +1135,21 @@ function forcefield_signup_authenticate( $results ) {
 	$requiressl = forcefield_get_setting( 'signup_requiressl' );
 	// 0.9.8: honour require SSL constant override
 	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
-	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
-			wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
 
 	// --- check for empty referer field ---
 	// 0.9.7: added isset check as may not be set if empty
-	if ( !isset( $_SERVER['HTTP_REFERER' ] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
+	if ( !isset( $_SERVER['HTTP_REFERER'] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
 
 		do_action( 'forcefield_signup_noreferer' );
 		do_action( 'forcefield_no_referer' );
@@ -1136,7 +1157,7 @@ function forcefield_signup_authenticate( $results ) {
 		// --- check no referer ban ---
 		// 0.9.1: separate general no referer recording
 		$norefban = forcefield_get_setting( 'blocklist_norefban' );
-		if ( 'yes' == $norefban ) {
+		if ( 'yes' === (string) $norefban ) {
 			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
 			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
 			if ( $blocked ) {
@@ -1146,7 +1167,7 @@ function forcefield_signup_authenticate( $results ) {
 
 		// --- check no referer block ---
 		$norefblock = forcefield_get_setting( 'signup_norefblock' );
-		if ( 'yes' == $norefblock ) {
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -1160,21 +1181,24 @@ function forcefield_signup_authenticate( $results ) {
 
 	// --- check tokenizer setting ---
 	$tokenize = forcefield_get_setting( 'signup_token' );
-	if ( 'yes' != $tokenize ) {return $results;}
+	if ( 'yes' !== (string) $tokenize ) {
+		return $results;
+	}
 
 	// --- maybe ban the IP if missing the token form field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( !isset( $_POST['auth_token_signup'] ) ) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-		if ( 'yes' == $recordnotoken ) {
-			forcefield_blocklist_record_ip('no_token');
+		if ( 'yes' === (string) $recordnotoken ) {
+			forcefield_blocklist_record_ip( 'no_token' );
 		}
 
 		// --- check no token ban ----
 		$instaban = forcefield_get_setting( 'signup_notokenban' );
-		if ( 'yes' == $instaban ) {
-			forcefield_blocklist_record_ip('no_signup_token');
+		if ( 'yes' === (string) $instaban ) {
+			forcefield_blocklist_record_ip( 'no_signup_token' );
 		}
 
 		do_action( 'forcefield_signup_notoken' );
@@ -1188,6 +1212,7 @@ function forcefield_signup_authenticate( $results ) {
 		// --- sanitize posted token ---
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$authtoken = $_POST['auth_token_signup'];
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
@@ -1279,17 +1304,14 @@ function forcefield_lost_password_authenticate( $allow ) {
 	$requiressl = forcefield_get_setting( 'lostpass_requiressl' );
 	// 0.9.8: honour require SSL constant override
 	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
-	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
-			wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1314,7 +1336,7 @@ function forcefield_lost_password_authenticate( $allow ) {
 
 		// --- no referer block ---
 		$norefblock = forcefield_get_setting( 'lostpass_norefblock' );
-		if ( 'yes' == $norefblock ) {
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -1327,28 +1349,29 @@ function forcefield_lost_password_authenticate( $allow ) {
 
 	// --- check tokenizer setting ---
 	$tokenize = forcefield_get_setting( 'lostpass_token' );
-	if ( 'yes' != $tokenize ) {
+	if ( 'yes' !== (string) $tokenize ) {
 		return $allow;
 	}
 
 	// --- maybe ban the IP if missing the token form field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( !isset( $_POST['auth_token_lostpass'] ) ) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-		if ( 'yes' == $recordnotoken ) {
+		if ( 'yes' === (string) $recordnotoken ) {
 			forcefield_blocklist_record_ip( 'no_token' );
 		}
 
 		// --- no token ban ---
 		$instaban = forcefield_get_setting( 'lostpass_notokenban' );
-		if ( 'yes' == $instaban ) {
+		if ( 'yes' === (string) $instaban ) {
 			forcefield_blocklist_record_ip( 'no_lostpass_token' );
 		}
 
 		do_action( 'forcefield_lostpass_notoken' );
 		do_action( 'forcefield_lostpass_failed' );
-		$status =  400; // HTTP 400: Bad Request
+		$status = 400; // HTTP 400: Bad Request
 		return forcefield_filtered_error( 'lostpass_token_missing', $errormessage, $status );
 
 	} else {
@@ -1356,6 +1379,7 @@ function forcefield_lost_password_authenticate( $allow ) {
 		// --- sanitize posted token ---
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to posted variable in preg_match check
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$authtoken = $_POST['auth_token_lostpass'];
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
@@ -1390,7 +1414,7 @@ function forcefield_lost_password_authenticate( $allow ) {
 		// --- fail, lost password token is a mismatch ---
 		// 0.9.1: record general token usage failure
 		$recordbadtokens = forcefield_get_setting( 'blocklist_badtokenban' );
-		if ( 'yes' == $recordbadtokens ) {
+		if ( 'yes' === (string) $recordbadtokens ) {
 			forcefield_blocklist_record_ip( 'bad_token' );
 		}
 
@@ -1443,17 +1467,14 @@ function forcefield_preprocess_comment( $comment ) {
 	$requiressl = forcefield_get_setting( 'comment_requiressl' );
 	// 0.9.8: honour require SSL constant override
 	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
-		if ( (bool)FORCEFIELD_REQUIRE_SSL ) {
-			$requiressl = 'yes';
-		} else {
-			$requiressl = '';
-		}
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
-	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
-			wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1468,7 +1489,7 @@ function forcefield_preprocess_comment( $comment ) {
 		// --- check no referer ban ---
 		// 0.9.1: separate general no referer recording
 		$norefban = forcefield_get_setting( 'blocklist_norefban' );
-		if ( 'yes' == $norefban ) {
+		if ( 'yes' === (string) $norefban ) {
 			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
 			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
 			if ( $blocked ) {
@@ -1478,7 +1499,7 @@ function forcefield_preprocess_comment( $comment ) {
 
 		// --- check no referer block ---
 		$norefblock = forcefield_get_setting( 'comment_norefblock' );
-		if ( 'yes' == $norefblock ) {
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -1490,23 +1511,24 @@ function forcefield_preprocess_comment( $comment ) {
 	}
 
 	// --- check tokenizer setting ---
-	$tokenize = forcefield_get_setting('comment_token');
-	if ( 'yes' != $tokenize ) {
+	$tokenize = forcefield_get_setting( 'comment_token' );
+	if ( 'yes' !== (string) $tokenize ) {
 		return $comment;
 	}
 
 	// --- maybe ban the IP if missing the token form field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( !isset( $_POST['auth_token_comment'] ) ) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-		if ( 'yes' == $recordnotoken ) {
+		if ( 'yes' === (string) $recordnotoken ) {
 			forcefield_blocklist_record_ip( 'no_token' );
 		}
 
 		// --- no token ban ---
 		$instaban = forcefield_get_setting( 'comment_notokenban' );
-		if ( 'yes' == $instaban ) {
+		if ( 'yes' === (string) $instaban ) {
 			forcefield_blocklist_record_ip( 'no_comment_token' );
 		}
 
@@ -1520,6 +1542,7 @@ function forcefield_preprocess_comment( $comment ) {
 		// --- sanitize posted token ---
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to posted variable name for preg_match
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$authtoken = $_POST['auth_token_comment'];
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
@@ -1553,8 +1576,8 @@ function forcefield_preprocess_comment( $comment ) {
 		// --- fail, comment token is a mismatch ---
 		// 0.9.1: record general token usage failure
 		$recordbadtokens = forcefield_get_setting( 'blocklist_badtokenban' );
-		if ( 'yes' == $recordbadtokens ) {
-			forcefield_blocklist_record_ip('bad_token');
+		if ( 'yes' === (string) $recordbadtokens ) {
+			forcefield_blocklist_record_ip( 'bad_token' );
 		}
 
 		do_action( 'forcefield_comment_mismatch' );
@@ -1566,7 +1589,8 @@ function forcefield_preprocess_comment( $comment ) {
 
 		// --- success, allow the user to comment ---
 		// 0.9.1: clear any bad token records
-		blocklist_delete_record( false, 'bad_token' );
+		// 1.0.3: fix to missing function prefix
+		forcefield_blocklist_delete_record( false, 'bad_token' );
 
 		// --- remove used comment token ---
 		forcefield_delete_token( 'comment' );
@@ -1599,9 +1623,12 @@ function buddypress_registration_authenticate() {
 function forcefield_buddypress_authenticate() {
 
 	// --- make sure we are on the BuddyPress registration page ---
-    if ( !function_exists( 'bp_is_current_component' ) || !bp_is_current_component( 'register' ) ) {
-    	return;
-    }
+	if ( !function_exists( 'bp_is_current_component' ) || !bp_is_current_component( 'register' ) ) {
+		// 1.0.3: added missing error return
+		$errormessage = __( 'Error: incorrect BuddyPress context.', 'forcefield' );
+		$status = 400;
+		return forcefield_filtered_error( 'buddypress_context', $errormessage, $status );
+	}
 
 	// --- filtered general error message ---
 	$errormessage = forcefield_get_error_message();
@@ -1609,20 +1636,21 @@ function forcefield_buddypress_authenticate() {
 
 	// --- check IP whitelist and blacklist ---
 	// 0.9.2: check IP blacklist
-	if ( forcefield_whitelist_check('actions' ) ) {
+	if ( forcefield_whitelist_check( 'actions' ) ) {
 		return false;
 	}
-	if ( forcefield_blacklist_check('actions' ) ) {
+	if ( forcefield_blacklist_check( 'actions' ) ) {
 		forcefield_forbidden_exit();
 	}
 
 	// --- maybe require SSL connection for registration ---
 	$requiressl = forcefield_get_setting( 'buddypress_requiressl' );
 	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
-			wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1636,7 +1664,7 @@ function forcefield_buddypress_authenticate() {
 
 		// --- check no referer ban ---
 		$norefban = forcefield_get_setting( 'blocklist_norefban' );
-		if ( 'yes' == $norefban ) {
+		if ( 'yes' === (string) $norefban ) {
 			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
 			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
 			if ( $blocked ) {
@@ -1646,7 +1674,7 @@ function forcefield_buddypress_authenticate() {
 
 		// --- check no referer block ---
 		$norefblock = forcefield_get_setting( 'buddypress_norefblock' );
-		if ( 'yes' == $norefblock ) {
+		if ( 'yes' === (string) $norefblock ) {
 			$block = true;
 		}
 
@@ -1658,36 +1686,38 @@ function forcefield_buddypress_authenticate() {
 	}
 
 	// --- check tokenizer setting ---
-    $tokenize = forcefield_get_setting( 'buddypress_token' );
-	if ( 'yes' != $tokenize ) {
-		return $errors;
+	$tokenize = forcefield_get_setting( 'buddypress_token' );
+	if ( 'yes' !== (string) $tokenize ) {
+		return false;
 	}
 
 	// --- maybe ban the IP if missing the token form field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	if ( !isset( $_POST['auth_token_buddypress'] ) ) {
 
 		// --- record no token ---
 		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
-		if ( 'yes' == $recordnotoken ) {
+		if ( 'yes' === (string) $recordnotoken ) {
 			forcefield_blocklist_record_ip( 'no_token' );
 		}
 
 		// --- no token ban ----
 		$instaban = forcefield_get_setting( 'buddypress_notokenban' );
-		if ( 'yes' == $instaban ) {
+		if ( 'yes' === (string) $instaban ) {
 			forcefield_blocklist_record_ip( 'no_buddypress_token' );
 		}
 
 		do_action( 'forcefield_buddypress_notoken' );
 		do_action( 'forcefield_buddypress_failed' );
 		$status = 400; // HTTP 400: Bad Request
-		return forcefield_filtered_error( 'buddypress_token_missing', $errormessage, $status, $errors );
+		return forcefield_filtered_error( 'buddypress_token_missing', $errormessage, $status );
 
 	} else {
 
 		// --- sanitize posted token ---
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$authtoken = $_POST['auth_token_buddypress'];
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
@@ -1714,19 +1744,19 @@ function forcefield_buddypress_authenticate() {
 		do_action( 'forcefield_buddypress_oldtoken' );
 		do_action( 'forcefield_buddypress_failed' );
 		$status = 403; // HTTP 403: Forbidden
-		return forcefield_filtered_error( 'buddypress_token_expired', $errormessage, $status, $errors );
+		return forcefield_filtered_error( 'buddypress_token_expired', $errormessage, $status );
 
 	} elseif ( $authtoken != $checktoken['value'] ) {
 
 		// --- fail, token is a mismatch ---
 		$recordbadtokens = forcefield_get_setting( 'blocklist_badtokenban' );
-		if ( 'yes' == $recordbadtokens ) {
+		if ( 'yes' === (string) $recordbadtokens ) {
 			forcefield_blocklist_record_ip( 'bad_token' );
 		}
 		do_action( 'forcefield_buddypress_mismatch' );
 		do_action( 'forcefield_buddypress_failed' );
 		$status = 401; // HTTP 401: Unauthorized
-		return forcefield_filtered_error( 'buddypress_token_mismatch', $errormessage, $status, $errors );
+		return forcefield_filtered_error( 'buddypress_token_mismatch', $errormessage, $status );
 
 	} else {
 
@@ -1738,5 +1768,5 @@ function forcefield_buddypress_authenticate() {
 		do_action( 'forcefield_buddypress_success' );
 	}
 
-    return $errors;
+	return false;
 }
