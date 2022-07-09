@@ -8,7 +8,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.0.0
 Tested up to: 6.0.0
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 
 Strong and Flexible Access, User Action, API, Behavioural and Role Protection
 
@@ -21,7 +21,7 @@ ForceField is not a "firewall" - nor a replacement for a comprehensive security 
 - tokenizing and recording login/registration behaviour
 - protecting whitelisted administrator and user roles
 - restricting WordPress API access and endpoints
-- tracking bot behavior and blocking repeat transgessors
+- tracking bot behavior and blocking repeat transgressors
 - periodically checking for known vulnerabilities
 
 **Tokenized Protection**
@@ -32,7 +32,7 @@ Since the majority of bots do not have the capacity or time to recognize and pro
 
 **Login Role Protection**
 
-A last line of defense against hackers who have managed to "somehow" create their own administrator account or escalate their user privelages! Automatically block, notify by email, revoke role and/or demote to subscriber any "administrator" account that logs in who is not in an *explicitly allowed list* of verified administrator usernames. Goodbye escalated privelage attack! 
+A last line of defense against hackers who have managed to "somehow" create their own administrator account or escalate their user priveleges! Automatically block, notify by email, revoke role and/or demote to subscriber any "administrator" account that logs in who is not in an *explicitly allowed list* of verified administrator usernames. Goodbye escalated privelege attack!
 
 **API Protection**
 
@@ -40,7 +40,7 @@ Adds several ways to restrict access to XML RPC and REST API features. While the
 
 **Behavioural Protection**
 
-ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (and so you don't lock yourself out of your site!)
+ForceField also records access to user actions missing referer headers, missing or bad tokens, and other bad behaviours in a custom table. Reaching transgression limits for any specific action results in an IP ban. Transgression occurrences are reduced via cooldown over time, with old records expired and later deleted (with intervals adjustable.) This process keeps protection high for fresh attacks while keeping the database free of old record bloat. Also gives the option to output a form to banned IPs so users can unblock themselves manually in case of false positives (and so you don't lock yourself out of your site!)
 
 **Vulnerability Check**
 
@@ -67,6 +67,14 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 
 == Changelog ==
 
+= 1.0.4 =
+* Updated: Plugin Panel (1.2.4)
+* Updated: WordQuest Helper (1.8.0)
+* Improved: WordPress Coding Standards
+
+= 1.0.3 =
+* Hotfix: for Application Password disable setting
+
 = 1.0.2 =
 * Updated: Freemius SDK (2.4.3)
 * Updated: Plugin Panel (1.2.3)
@@ -80,7 +88,7 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 * Added: option to disable Application Passwords (WP 5.6+)
 * Improved: use of WordPress Coding Standards
 * Fixed: blocklist expiry and delete records interval checking
-* Deprecated: use of WPVulbDB API v2 (v3 token now required)
+* Deprecated: use of WPVulDB API v2 (v3 token now required)
 * Disabled: Super Admin actions for further testing
 * Disabled: API slowdowns for further testing
 * Temporarily Disabled: Vulnerability Checking Feature
@@ -108,7 +116,7 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 * sanitize and validate all posted action token values
 * vulnerability API check default to use wp_remote_get
 * fix to vulnerability checker already updated check
-* fix to vulnarability alert emails for plugins/themes
+* fix to vulnerability alert emails for plugins/themes
 * allow listing multiple vulnerabilities per resource
 * added vulnerability notice dismissal button / AJAX
 * added vulnerability checker API overload Detection

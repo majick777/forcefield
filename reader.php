@@ -3483,8 +3483,8 @@ if (!class_exists('WordPress_Readme_Parser')) {
 	        $text = call_user_func( array( __CLASS__, 'code_trick' ), $text, $markdown ); // A better parser than Markdown's for: backticks -> CODE
 
 		if ( $markdown ) { // Parse markdown.
-			if ( !function_exists('Markdown') )
-				require WORDPRESS_README_MARKDOWN;
+			// if ( !function_exists('Markdown') )
+			// 	require WORDPRESS_README_MARKDOWN;
 			$text = Markdown($text);
 		}
 

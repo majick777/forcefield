@@ -39,7 +39,7 @@
 // ------------------
 function forcefield_whitelist_check( $context, $ip = false ) {
 
-	global $wpdb, $forcefield;
+	global $forcefield;
 	if ( !$ip ) {
 		if ( !isset( $forcefield['ip'] ) ) {
 			$forcefield['ip'] = forcefield_get_remote_ip();
@@ -49,7 +49,7 @@ function forcefield_whitelist_check( $context, $ip = false ) {
 
 	// --- check permanent whitelist (no context) ---
 	$whitelist = forcefield_get_setting( 'blocklist_whitelist' );
-	if ( is_array($whitelist ) ) {
+	if ( is_array( $whitelist ) ) {
 		if ( in_array( $ip, $whitelist ) ) {
 			return true;
 		}
@@ -77,7 +77,7 @@ function forcefield_whitelist_check( $context, $ip = false ) {
 // 0.9.7: fix to variable typo (ontext?!)
 function forcefield_blacklist_check( $context, $ip = false ) {
 
-	global $wpdb, $forcefield;
+	global $forcefield;
 	if ( !$ip ) {
 		if ( !isset( $forcefield['ip'] ) ) {
 			$forcefield['ip'] = forcefield_get_remote_ip();
@@ -147,11 +147,12 @@ function forcefield_blocklist_check() {
 	// --- check for remaining blocklist records for this IP ---
 	$records = forcefield_blocklist_check_ip( $forcefield['ip'] );
 	if ( $records && is_array( $records ) && ( count( $records ) > 0 ) ) {
-		foreach ($records as $record) {
+		foreach ( $records as $record ) {
 
 			// --- check block cool down ---
 			// 0.9.1: check the cooldown period for this block
-			if ( 'yes' == forcefield_get_setting('blocklist_cooldown' ) ) {
+			$cooldown = forcefield_get_setting( 'blocklist_cooldown' );
+			if ( 'yes' === (string) $cooldown ) {
 				$record = forcefield_blocklist_cooldown( $record );
 			}
 
@@ -182,7 +183,7 @@ function forcefield_blocklist_check() {
 					// --- set page to not be cached ---
 					// 1.0.0: added no page cache constant
 					if ( defined( 'DONOTCACHEPAGE' ) ) {
-						define('DONOTCACHEPAGE', true);
+						define( 'DONOTCACHEPAGE', true );
 					}
 
 					// --- transgressions are over limit! ---
@@ -195,7 +196,8 @@ function forcefield_blocklist_check() {
 					header( "Pragma: no-cache" );
 
 					// --- maybe allow manual unblocking ---
-					if ( 'yes' == forcefield_get_setting('blocklist_unblocking') ) {
+					$unblocking = forcefield_get_setting( 'blocklist_unblocking' );
+					if ( 'yes' === (string) $unblocking ) {
 						// 0.9.1: output manual unblocking request form
 						forcefield_blocklist_unblock_form_output();
 					} else {
@@ -206,7 +208,6 @@ function forcefield_blocklist_check() {
 			}
 		}
 	}
-	return;
 }
 
 // ---------------------------------------
@@ -231,6 +232,7 @@ function forcefield_blocklist_table_create() {
 
 	// --- create table query ---
 	// 0.9.7: fix for mismatch table name key on new installs
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$checktable = $wpdb->get_var( "SHOW TABLES LIKE '" . $forcefield['table'] . "'" );
 	if ( $checktable != $forcefield['table'] ) {
 
@@ -285,6 +287,7 @@ function forcefield_blocklist_table_init() {
 function forcefield_blocklist_check_table() {
 	global $wpdb, $forcefield;
 	$tablequery = "SHOW TABLES LIKE '" . $forcefield['table'] . "'";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$checktable = $wpdb->get_var( $tablequery );
 	if ( $checktable != $forcefield['table'] ) {
 		return false;
@@ -299,6 +302,7 @@ function forcefield_blocklist_check_table() {
 function forcefield_blocklist_clear_table() {
 	global $wpdb, $forcefield;
 	$query = "DELETE FROM " . $forcefield['table'] . " WHERE `list` = 'AB'";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$delete = $wpdb->query( $query );
 	return $delete;
 }
@@ -330,25 +334,30 @@ function forcefield_blocklist_get_records( $columns = array(), $ip = false, $rea
 		$where = "WHERE `deleted_at` = 0";
 	}
 	if ( $ip ) {
+		// 1.0.4: removed single quotes from %s placeholders
 		if ( '' == $where ) {
 			$where = $wpdb->prepare( "WHERE `ip` = %s", $ip );
 		} else {
-			$where .= $wpdb->prepare( " AND `ip` = '%s'", $ip );
+			$where .= $wpdb->prepare( " AND `ip` = %s", $ip );
 		}
 	}
 	if ( $reason ) {
 		// 0.9.5: fix to handle reason without specific IP address
+		// 1.0.4: removed single quotes from %s placeholders
 		if ( '' == $where ) {
-			$where .= $wpdb->prepare( " WHERE `label` = '%s'", $reason );
+			$where .= $wpdb->prepare( " WHERE `label` = %s", $reason );
 		} else {
-			$where .= $wpdb->prepare( " AND `label` = '%s'", $reason );
+			$where .= $wpdb->prepare( " AND `label` = %s", $reason );
 		}
 	}
-
 	$query = "SELECT " . $columnquery . " FROM " . $forcefield['table'] . " " . $where;
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $forcefield['debug'] ) && $forcefield['debug'] ) {
-		echo "<!-- Blocklist Query: " . $query . " -->";
+		echo "<!-- Blocklist Query: " . esc_html( $query ) . " -->" . PHP_EOL;
 	}
+
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$results = $wpdb->get_results( $query, ARRAY_A );
 	if ( is_array( $results ) && ( count( $results ) > 0 ) ) {
 		return $results;
@@ -395,8 +404,8 @@ function forcefield_blocklist_record_ip( $reason, $ip = false ) {
 	}
 
 	// --- add new IP address record to Blocklist Table ---
-	$ip6 = 0;
-	if ('ip6' == forcefield_get_ip_type( $ip ) ) {$ip6 = 1;}
+	// 1.0.4: simplified logic to single line
+	$ip6 = ( 'ip6' == forcefield_get_ip_type( $ip ) ) ? 1 : 0;
 	$record = array(
 		'ip' 				=> $ip,
 		'label'				=> $reason,
@@ -406,7 +415,7 @@ function forcefield_blocklist_record_ip( $reason, $ip = false ) {
 		'is_range' 			=> 0,
 		'last_access_at' 	=> $time,
 		'created_at' 		=> $time,
-		'deleted_at' 		=> 0
+		'deleted_at' 		=> 0,
 	);
 	$insert = $wpdb->insert( $forcefield['table'], $record );
 	return $record;
@@ -421,7 +430,7 @@ function forcefield_blocklist_check_transgressions( $reason, $transgressions ) {
 	// return true; // TEST TEMP: 1 attempt = auto block
 
 	// --- get limit for this block reason ---
-	$limit = forcefield_get_setting( 'limit_' . $reason);
+	$limit = forcefield_get_setting( 'limit_' . $reason );
 
 	// --- for instant ban set limit to 1 ---
 	if ( ( ( 'no_login_token' == $reason ) && ( 'yes' == forcefield_get_setting( 'login_notokenban' ) ) )
@@ -429,7 +438,7 @@ function forcefield_blocklist_check_transgressions( $reason, $transgressions ) {
 	  || ( ( 'no_signup_token' == $reason ) && ( 'yes' == forcefield_get_setting( 'signup_notokenban' ) ) )
 	  || ( ( 'no_lostpass_token' == $reason ) && ( 'yes' == forcefield_get_setting( 'lostpass_notokenban' ) ) )
 	  || ( ( 'no_comment_token' == $reason ) && ( 'yes' == forcefield_get_setting( 'comment_notokenban' ) ) ) ) {
-	    $limit = 1;
+	  $limit = 1;
 	}
 
 	// --- filter and return result ---
@@ -507,15 +516,15 @@ function forcefield_blocklist_cooldown( $record ) {
 	$diff = time() - $record['last_access_at'];
 	if ( $diff > $cooldown ) {
 		if ( $record['transgressions'] > 0 ) {
-			// TODO: check floor/ceil usage here?
-			$reduce = floor( $diff / $cooldown ); 
+			// TODO: recheck floor/ceil usage here?
+			$reduce = floor( $diff / $cooldown );
 			$record['trangressions'] = $record['transgressions'] - $reduce;
 			if ( $record['transgressions'] < 1 ) {
 				$record['transgressions'] = 0;
 				$record['deleted_at'] = time();
 			}
 			// note: not strictly accurate
-			$record['last_access_at'] = time(); 
+			$record['last_access_at'] = time();
 			$where = array( 'id' => $record['id'] );
 			$wpdb->update( $forcefield['table'], $record, $where );
 		}
@@ -530,22 +539,24 @@ function forcefield_blocklist_expire_old_rows( $timestamp, $reason = false, $ip 
 
 	global $wpdb, $forcefield;
 	$query = "UPDATE " . $forcefield['table'] . " SET `deleted_at` = %s WHERE `last_access_at` < %s";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$query = $wpdb->prepare( $query, array( time(), $timestamp ) );
 	if ( $reason ) {
 		if ( 'admin_bad' == $reason ) {
 			// never auto-expire
 			return false;
-		} 
+		}
 		$query .= $wpdb->prepare( " AND `label` = %s", $reason );
 	}
 	if ( $ip ) {
 		$query .= $wpdb->prepare( " AND `ip` = %s", $ip );
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
-		echo $query . "<br>" . PHP_EOL;
+		echo esc_html( $query ) . '<br>' . PHP_EOL;
 	}
-
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	return $wpdb->query( $query );
 }
 
@@ -558,9 +569,11 @@ function forcefield_blocklist_delete_old_rows( $timestamp, $reason = false, $ip 
 
 	// 0.9.6: add auto-delete of bad records (with empty IP)
 	$query = "DELETE FROM " . $forcefield['table'] . " WHERE ip = ''";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$clear = $wpdb->query( $query );
 
-	$query = "DELETE FROM ".$forcefield['table']." WHERE `last_access_at` < %s";
+	$query = "DELETE FROM " . $forcefield['table'] . " WHERE `last_access_at` < %s";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$query = $wpdb->prepare( $query, $timestamp );
 	if ( $reason ) {
 		if ( 'admin_bad' == $reason ) {
@@ -572,11 +585,12 @@ function forcefield_blocklist_delete_old_rows( $timestamp, $reason = false, $ip 
 	if ( $ip ) {
 		$query .= $wpdb->prepare( " AND `ip` = %s", $ip );
 	}
-	
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
-		echo $query . "<br>" . PHP_EOL;
+		echo esc_html( $query ) . '<br>' . PHP_EOL;
 	}
-	
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	return $wpdb->query( $query );
 }
 
@@ -590,10 +604,12 @@ function forcefield_blocklist_delete_record( $ip = false, $reason = false ) {
 		$ip = $forcefield['ip'];
 	}
 	$query = "DELETE FROM " . $forcefield['table'] . " WHERE `ip` = %s";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$query = $wpdb->prepare( $query, $ip );
 	if ( $reason ) {
 		$query .= $wpdb->prepare( " AND `label` = %s", $reason );
 	}
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	return $wpdb->query( $query );
 }
 
@@ -607,7 +623,7 @@ function forcefield_blocklist_remove_record() {
 	if ( !current_user_can( 'manage_options' ) ) {
 		exit;
 	}
-	
+
 	// --- check admin referer ---
 	// 0.9.6: fix to referrer typo
 	// 0.9.6: change to -delete action suffix
@@ -633,11 +649,13 @@ function forcefield_blocklist_remove_record() {
 	}
 
 	// --- delete block record
-	$result = forcefield_blocklist_delete_record( $ip, $reason );
+	$delete = forcefield_blocklist_delete_record( $ip, $reason );
 
 	// --- remove row(s) from IP blocklist display table ---
 	// 1.0.0: added row removal javascript
-	if ( isset($_REQUEST['row'] ) ) {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( isset( $_REQUEST['row'] ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$row = absint( $_REQUEST['row'] );
 		$js = "parent.document.getElementById('blocklist-row-" . esc_js( $row ) . "').style.display = 'none'; ";
 	} else {
@@ -652,6 +670,7 @@ function forcefield_blocklist_remove_record() {
 	$js .= "parent.document.getElementById('unblock-nonce').value = '" . esc_js( $unblocknonce ) . "'; ";
 
 	// --- output javascript ---
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
 	echo "<script>" . $js . "</script>";
 
 	// --- alert and exit ---
@@ -669,11 +688,12 @@ function forcefield_blocklist_clear() {
 	if ( !current_user_can( 'manage_options' ) ) {
 		exit;
 	}
-	
+
 	// --- check admin referer ---
 	// 0.9.6: fix to referrer typo
 	// 1.0.2: alert with nonce expired message
 	// check_admin_referer( 'forcefield-clear' );
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$nonce = $_REQUEST['nonce'];
 	$checknonce = wp_verify_nonce( $nonce, 'forcefield-clear' );
 	if ( !$checknonce ) {
@@ -690,7 +710,7 @@ function forcefield_blocklist_clear() {
 	} else {
 		$message = __( 'Error. Blocklist table does not exist.', 'forcefield' );
 	}
-	echo "<script>parent.document.getElementById('blocklist-table').innerHTML = '';</script>"; 
+	echo "<script>parent.document.getElementById('blocklist-table').innerHTML = '';</script>";
 
 	forcefield_alert_message( $message );
 	exit;
@@ -705,43 +725,48 @@ function forcefield_blocklist_unblock_form_output() {
 	global $forcefield;
 
 	// --- form title ---
-	echo "<br><table><tr><td align='center'><h3>" . __( '403 Forbidden', 'forcefield' ) ."</h3></td></tr>" . PHP_EOL;
-	echo "<tr height='20'><td> </td></tr>";
+	echo '<br><table><tr><td align="center">' . PHP_EOL;
+		// 1.0.4: added missing esc_html wrapper
+		echo '<h3>' . esc_html( __( '403 Forbidden', 'forcefield' ) ) . '</h3>' . PHP_EOL;
+	echo '</td></tr>' . PHP_EOL;
+	echo '<tr height="20"><td> </td></tr>' . PHP_EOL;
 
 	// --- user message ---
-	echo "<tr><td>";
-	echo __( 'Access Denied. Your IP Address has been blocked!', 'forcefield' ) . "<br>" . PHP_EOL;
-	echo __( 'Your IP Address is: ','forcefield' ) . $forcefield['ip'] . "<br>" . PHP_EOL;
-	echo __( 'If you are a real person click the button below.', 'forcefield') . PHP_EOL;
-	echo "</td></tr>";
+	// 1.0.4: added missing esc_html wrappers
+	echo '<tr><td>' . PHP_EOL;
+		echo esc_html( __( 'Access Denied. Your IP Address has been blocked!', 'forcefield' ) ) . '<br>' . PHP_EOL;
+		echo esc_html( __( 'Your IP Address is: ', 'forcefield' ) ) . esc_html( $forcefield['ip'] ) . '<br>' . PHP_EOL;
+		echo esc_html( __( 'If you are a real person click the button below.', 'forcefield' ) ) . PHP_EOL;
+	echo '</td></tr>' . PHP_EOL;
 
-	echo "<tr height='20'><td> </td></tr>";
-	echo "<tr><td align='center'>";
+	echo '<tr height="20"><td> </td></tr>' . PHP_EOL;
+	echo '<tr><td align="center">';
 
 		// --- unblock form ---
 		// 0.9.6: added missing nonce unblock field
 		// 1.0.0: remove unused form target attribute
 		// 1.0.0: add redirect field for unblock success
 		// 1.0.0: set form method to POST for unblock token check
+		// 1.0.3: simplify protocol logic
+		// 1.0.4: added missing esc_url and esc_url_raw wrappers
 		$adminajax = admin_url( 'admin-ajax.php' );
-		$protocol = 'http://';
-		if ( is_ssl() ) {
-			$protocol = 'https://';
-		}
+		$protocol = is_ssl() ? 'https://' : 'http://';
 		$redirect = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-		echo "<form action='" . $adminajax . "' method='post'>";
-		echo "<input type='hidden' name='action' value='forcefield_unblock'>";
-		echo "<input type='hidden' name='redirect' value='" . $redirect . "'>";
+		echo '<form action="' . esc_url( $adminajax ) . '" method="post">' . PHP_EOL;
+		echo '<input type="hidden" name="action" value="forcefield_unblock">' . PHP_EOL;
+		echo '<input type="hidden" name="redirect" value="' . esc_url_raw( $redirect ) . '">' . PHP_EOL;
 		wp_nonce_field( 'forcefield-unblock' );
 
 		// --- add an unblock token field ---
 		forcefield_add_field( 'unblock' );
 
 		// --- submit button ---
-		echo "<input type='submit' value='" . __( 'Unblock My IP', 'forcefield' ) ."'>";
-		echo "</form>";
+		// 1.0.4: added missing esc_html wrapper
+		echo '<input type="submit" value="' . esc_html( __( 'Unblock My IP', 'forcefield' ) ) . '">' . PHP_EOL;
+		echo '</form>' . PHP_EOL;
 
-	echo "</td></tr></table>";
+	echo '</td></tr></table>' . PHP_EOL;
+	echo '</html></body>';
 }
 
 // -------------------
@@ -765,12 +790,15 @@ function forcefield_blocklist_unblock_check() {
 
 	// --- check for unblock token ---
 	// 0.9.7: added check if unblock token set
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_POST['auth_token_unblock'] ) ) {
 
 		// --- get sanitized post value ---
 		// 0.9.9: strip non alphanumeric characters
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$authtoken = $_POST['auth_token_unblock'];
-		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $posted );
+		// 1.0.3: fix to mismatched variable name (posted)
+		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 
 		// --- check token exists for IP ---
 		$checktoken = forcefield_check_token( 'unblock' );
@@ -800,17 +828,20 @@ function forcefield_blocklist_unblock_check() {
 			forcefield_delete_token( 'unblock' );
 
 			// --- output unblock success message ---
-			echo "<p>" . __('Success! Your IP has been unblocked.', 'forcefield') . "</p>";
+			// 1.0.4: added missing esc_html wrapper
+			echo '<p>' . esc_html( __( 'Success! Your IP has been unblocked.', 'forcefield' ) ) . '</p>';
 
 			// --- maybe automatically redirect to last URL ---
 			// 1.0.0: added automatic redirect
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( isset( $_REQUEST['redirect'] ) && ( '' != $_REQUEST['redirect'] ) ) {
 
 				// --- output redirection message ---
-				// 1.0.1: fix to incorrect tex domain
+				// 1.0.1: fix to incorrect text domain
+				// 1.0.4: added missing esc_html wrappers
 				$redirect = $_REQUEST['redirect'];
-				echo "<p>" . __( 'You will be automatically redirected to your last requested address.', 'forcefield') . "</p>";
-				echo "<p><a href='" . esc_url( $redirect ) . "'>".__('Click here to continue to this address manually.', 'forcefield') . "</a></p>";
+				echo '<p>' . esc_html( __( 'You will be automatically redirected to your last requested address.', 'forcefield' ) ) . '</p>';
+				echo '<p><a href="' . esc_url( $redirect ) . '">' . esc_html( __( 'Click here to continue to this address manually.', 'forcefield' ) ) . '</a></p>';
 
 				// --- script for automatic redirection ---
 				echo "<script>setTimeout(function() {document.location = '" . esc_url( $redirect ) . "';}, 5000);</script>";
@@ -835,9 +866,9 @@ function forcefield_blocklist_unblock_check() {
 function forcefield_blocklist_table_cleanup( $reason = false, $ip = false ) {
 
 	if ( !forcefield_blocklist_check_table() ) {
-		return false;	
+		return false;
 	}
-	
+
 	$intervals = forcefield_get_intervals();
 
 	// --- expire old block records ---
@@ -847,8 +878,10 @@ function forcefield_blocklist_table_cleanup( $reason = false, $ip = false ) {
 	if ( $reason ) {
 		$expireperiod = apply_filters( 'blocklist_expiry_' . $reason, $expireperiod );
 	}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
-		echo "Expire Period: " . $expireperiod . "<br>" . PHP_EOL;
+		// 1.0.4: added missing esc_html wrapper
+		echo 'Expire Period: ' . esc_html( $expireperiod ) . '<br>' . PHP_EOL;
 	}
 	if ( $expireperiod > 0 ) {
 		// --- expire old rows ---
@@ -861,11 +894,13 @@ function forcefield_blocklist_table_cleanup( $reason = false, $ip = false ) {
 	$deleteperiod = forcefield_get_setting( 'blocklist_delete' );
 	$deleteperiod = $intervals[$deleteperiod]['interval'];
 	if ( $reason ) {
-		$deleteperiod = apply_filters('blocklist_delete_' . $reason, $deleteperiod );
+		$deleteperiod = apply_filters( 'blocklist_delete_' . $reason, $deleteperiod );
 	}
 	// $expireperiod = absint( $expireperiod );
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
-		echo "Delete Period: " . $deleteperiod . "<br>" . PHP_EOL;
+		// 1.0.4: added missing esc_html wrapper
+		echo 'Delete Period: ' . esc_html( $deleteperiod ) . '<br>' . PHP_EOL;
 	}
 	if ( $deleteperiod > 0 ) {
 		// --- delete old rows ---
@@ -886,7 +921,8 @@ function forcefield_blocklist_schedule_cleanup() {
 		$frequency = forcefield_get_setting( 'blocklist_cleanups' );
 		wp_schedule_event( time(), $frequency, 'forcefield_blocklist_table_cleanup' );
 	}
-	if ( current_user_can( 'manage_options') ) {
+	if ( current_user_can( 'manage_options' ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
 			forcefield_blocklist_table_cleanup();
 			exit;

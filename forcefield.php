@@ -5,7 +5,7 @@ Plugin Name: ForceField
 Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Strong and Flexible Access, User Action, API and Role Protection
-Version: 1.0.3
+Version: 1.0.4
 Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
@@ -75,7 +75,7 @@ if ( !defined( 'ABSPATH' ) ) {
 // -----------------
 // - option to require user to be logged in for blog signup ?
 // - single device sign-ons (force logout all other sessions)
-// - obscure all stylesheet and resource URL paths? 
+// - obscure all stylesheet and resource URL paths?
 
 
 // -----------------------
@@ -102,7 +102,7 @@ function forcefield_add_admin_menu( $added, $args ) {
 
 	// --- check if using parent menu ---
 	// (and parent menu capability)
-	if ( isset( $args['parentmenu']) && ( $args['parentmenu'] == 'wordquest' ) && current_user_can( $capability ) ) {
+	if ( isset( $args['parentmenu'] ) && ( 'wordquest' == $args['parentmenu'] ) && current_user_can( $capability ) ) {
 
 		// --- add WordQuest Plugin Submenu ---
 		add_submenu_page( 'wordquest', $args['pagetitle'], $args['menutitle'], $args['capability'], $args['slug'], $args['namespace'] . '_settings_page' );
@@ -122,7 +122,8 @@ function forcefield_add_admin_menu( $added, $args ) {
 function forcefield_wordquest_submenu_fix() {
 	$args = forcefield_loader_instance()->args;
 	$icon_url = plugins_url( 'images/icon.png', $args['file'] );
-	if ( isset( $_REQUEST['page'] ) && ( $_REQUEST['page'] == $args['slug'] ) ) {$current = '1';} else {$current = '0';}
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$current = ( isset( $_REQUEST['page'] ) && ( $_REQUEST['page'] == $args['slug'] ) ) ? '1' : '0';
 	echo "<script>jQuery(document).ready(function() {if (typeof wordquestsubmenufix == 'function') {
 	wordquestsubmenufix('" . esc_js( $args['slug'] ) . "', '" . esc_url( $icon_url ) . "', '" . esc_js( $current ) . "');} });</script>";
 }
@@ -130,15 +131,16 @@ function forcefield_wordquest_submenu_fix() {
 // ------------------------------
 // Add WordQuest Sidebar Settings
 // ------------------------------
-add_action( 'forcefield_add_settings', 'forcefield_add_settings' , 10, 1 );
+add_action( 'forcefield_add_settings', 'forcefield_add_settings', 10, 1 );
 function forcefield_add_settings( $args ) {
 	if ( isset( $args['settings'] ) ) {
 		$adsboxoff = 'checked';
-		if ( file_exists($args['dir'] . '/updatechecker.php' ) ) {
+		if ( file_exists( $args['dir'] . '/updatechecker.php' ) ) {
 			$adsboxoff = '';
 		}
+		// 1.0.4: use gmdate instead of date
 		$sidebaroptions = array(
-			'installdate'		=> date( 'Y-m-d' ),
+			'installdate'		=> gmdate( 'Y-m-d' ),
 			'donationboxoff'	=> '',
 			'subscribeboxoff'	=> '',
 			'reportboxoff' 		=> '',
@@ -153,11 +155,12 @@ function forcefield_add_settings( $args ) {
 // ---------------------------
 add_action( 'forcefield_loader_helpers', 'forcefield_load_wordquest_helper', 10, 1 );
 function forcefield_load_wordquest_helper( $args ) {
-	if ( is_admin() && ( version_compare( PHP_VERSION, '5.3.0') >= 0 ) ) {
+	if ( is_admin() && ( version_compare( PHP_VERSION, '5.3.0' ) >= 0 ) ) {
 		$wqhelper = dirname( __FILE__ ) . '/wordquest.php';
 		if ( file_exists( $wqhelper ) ) {
-			include( $wqhelper );
-			global $wordquestplugins; $slug = $args['slug'];
+			include $wqhelper;
+			global $wordquestplugins;
+			$slug = $args['slug'];
 			$wordquestplugins[$slug] = $args;
 		}
 	}
@@ -181,18 +184,18 @@ define( 'FORCEFIELD_FILE', __FILE__ );
 // 0.9.7: moved above plugin loader for function accessibility
 
 // --- WordPress APIs Module ---
-include_once FORCEFIELD_DIR . '/forcefield-apis.php' ;
+require_once FORCEFIELD_DIR . '/forcefield-apis.php';
 
 // --- Authentication Module ---
-include_once FORCEFIELD_DIR . '/forcefield-auth.php';
+require_once FORCEFIELD_DIR . '/forcefield-auth.php';
 
 // --- Blocklist Module ---
-include_once FORCEFIELD_DIR . '/forcefield-block.php';
+require_once FORCEFIELD_DIR . '/forcefield-block.php';
 
 // --- Vulnerability Checker Module ---
 // 1.0.1: temporarily removed for retesting
 if ( file_exists( FORCEFIELD_DIR . '/forcefield-vuln.php' ) ) {
-	include_once FORCEFIELD_DIR . '/forcefield-vuln.php';
+	require_once FORCEFIELD_DIR . '/forcefield-vuln.php';
 }
 
 // ------------------
@@ -254,7 +257,7 @@ $options = array(
 	'super_block' 			=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> 'yes'
+		'default'	=> 'yes',
 	),
 	'super_blockaction'		=> array(
 		// 'type'		=> '/delete/revoke/demote',
@@ -270,7 +273,7 @@ $options = array(
 	'super_alert'			=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> 'yes'
+		'default'	=> 'yes',
 	),
 	'super_email'			=> array(
 		'type'		=> 'text',
@@ -342,7 +345,7 @@ $options = array(
 	'login_norefblock'		=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> 'yes'
+		'default'	=> 'yes',
 	),
 	'login_requiressl'		=> array(
 		'type'		=> 'checkbox',
@@ -369,7 +372,7 @@ $options = array(
 	'register_norefblock'	=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> 'yes'
+		'default'	=> 'yes',
 	),
 	'register_requiressl'	=> array(
 		'type'		=> 'checkbox',
@@ -382,7 +385,7 @@ $options = array(
 	'buddypress_token'		=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> 'yes'
+		'default'	=> 'yes',
 	),
 	'buddypress_notokenban'	=> array(
 		'type'		=> 'checkbox',
@@ -463,7 +466,7 @@ $options = array(
 	'comment_requiressl'	=> array(
 		'type'		=> 'checkbox',
 		'value'		=> 'yes',
-		'default'	=> ''
+		'default'	=> '',
 	),
 
 	// --- Application Passwords ---
@@ -558,7 +561,7 @@ $options = array(
 	),
 	'restapi_roles'			=> array(
 		'type'		=> 'special',
-		'default'	=> array()
+		'default'	=> array(),
 	),
 	'restapi_nouserlist'	=> array(
 		'type'		=> 'checkbox',
@@ -615,7 +618,7 @@ $options = array(
 	// --- Admin Page Interface ---
 	'current_tab'			=> array(
 		'type'		=> 'general/role-protect/user-actions/api-access/vuln-check/ip-blocklist',
-		'default'	=> 'general'
+		'default'	=> 'general',
 	),
 
 );
@@ -648,11 +651,11 @@ $args = array(
 
 	// --- Menus and Links ---
 	'title'			=> 'ForceField',
-	'parentmenu'		=> 'wordquest',
-	'home'			=> 'https://wordquest.org/plugins/'.$slug.'/',
-	'support'		=> 'https://wordquest.org/quest-category/'.$slug.'/',
-	'share'			=> 'https://wordquest.org/plugins/'.$slug.'/#share',
-	'donate'		=> 'https://wordquest.org/contribute/?plugin='.$slug,
+	'parentmenu'	=> 'wordquest',
+	'home'			=> 'https://wordquest.org/plugins/' . $slug . '/',
+	'support'		=> 'https://wordquest.org/quest-category/' . $slug . '/',
+	'share'			=> 'https://wordquest.org/plugins/' . $slug . '/#share',
+	'donate'		=> 'https://wordquest.org/contribute/?plugin=' . $slug,
 	'donatetext'		=> __( 'Support ForceField', 'forcefield' ),
 	'welcome'		=> '',	// TODO
 
@@ -663,13 +666,13 @@ $args = array(
 	'settings'		=> 'ff',
 
 	// --- WordPress.Org ---
-	// 'wporgslug'		=> 'forcefield',
-	'textdomain'		=> 'forcefield',
-	// 'wporg'		=> false,
+	'wporgslug'	    => 'forcefield',
+	'textdomain'	=> 'forcefield',
+	'wporg'		    => true,
 
 	// --- Freemius ---
-	'freemius_id'		=> '1555',
-	'freemius_key'		=> 'pk_8c058d54aa8e43dbb8fd1259992ab',
+	'freemius_id'	=> '1555',
+	'freemius_key'	=> 'pk_8c058d54aa8e43dbb8fd1259992ab',
 	'hasplans'		=> false,
 	'hasaddons'		=> false,
 	'plan'			=> 'free',
@@ -689,16 +692,17 @@ $debugdir = FORCEFIELD_DIR . '/debug';
 if ( !is_dir( $debugdir ) ) {
 	wp_mkdir_p( $debugdir );
 }
-if ( is_dir($debugdir ) ) {
+if ( is_dir( $debugdir ) ) {
 
-	$debughtaccess = $debugdir."/.htaccess";
-	$htaccess = "deny from all";
+	$debughtaccess = $debugdir . '/.htaccess';
+	$htaccess = 'deny from all';
 
 	// --- check for existing htaccess file and content match ---
 	$writehtaccess = false;
 	if ( !file_exists( $debughtaccess ) ) {
 		$writehtaccess = true;
-	} elseif ( file_get_contents( $debughtaccess ) != $htaccess ) {
+	// phpcs:ignore WordPress.PHP.YodaConditions.NotYoda
+	} elseif ( $htaccess != file_get_contents( $debughtaccess ) ) {
 		$writehtaccess = true;
 	}
 
@@ -706,14 +710,14 @@ if ( is_dir($debugdir ) ) {
 
 		// --- check direct writing method before writing ---
 		if ( !function_exists( 'get_filesystem_method' ) ) {
-			require_once ABSPATH.'/wp-admin/includes/file.php';
+			require_once ABSPATH . '/wp-admin/includes/file.php';
 		}
 		$checkmethod = get_filesystem_method( array(), $debugdir, false );
 
-		if ( $checkmethod == 'direct' ) {
+		if ( 'direct' == $checkmethod ) {
 			// --- write directly ---
-			$fh = fopen( $debughtaccess, 'w');
-			@fwrite( $fh, $htaccess);
+			$fh = fopen( $debughtaccess, 'w' );
+			@fwrite( $fh, $htaccess );
 			fclose( $fh );
 			@chmod( $debughtaccess, 0644 );
 		} else {
@@ -724,8 +728,9 @@ if ( is_dir($debugdir ) ) {
 		}
 
 		// 1.9.7: recheck for written .htaccess file
-		if ( !file_exists( $debughtaccess ) || ( file_get_contents( $debughtaccess ) != $htaccess ) ) {
-			add_action('admin_notices', 'forcefield_debug_htaccess_warning' );
+		// phpcs:ignore WordPress.PHP.YodaConditions.NotYoda
+		if ( !file_exists( $debughtaccess ) || ( $htaccess != file_get_contents( $debughtaccess ) ) ) {
+			add_action( 'admin_notices', 'forcefield_debug_htaccess_warning' );
 		}
 	}
 } else {
@@ -737,7 +742,7 @@ if ( is_dir($debugdir ) ) {
 // -------------------------------------
 function forcefield_debug_directory_warning() {
 	global $forcefield;
-	$message = __( 'Warning', 'forcefield') . ": " . $forcefield['title'] . " ";
+	$message = __( 'Warning', 'forcefield' ) . ': ' . $forcefield['title'] . ' ';
 	$message .= __( 'Debug Log Directory NOT writeable!', 'forcefield' );
 	// 1.0.1: output warning notice
 	echo '<div class="notice notice-warning">' . esc_html( $message ) . '</div>';
@@ -749,9 +754,9 @@ function forcefield_debug_directory_warning() {
 // 0.9.7: added this warning
 function forcefield_debug_htaccess_warning() {
 	global $forcefield;
-	$message = __( 'Warning', 'forcefield' ) . ": " . $forcefield['title'] . " ";
-	$message .= __( 'Debug Log Directory .htaccess write failure.','forcefield' ) . "<br>";
-	$message .= __( 'It is recommended that you fix this problem manually.','forcefield' );
+	$message = __( 'Warning', 'forcefield' ) . ': ' . $forcefield['title'] . ' ';
+	$message .= __( 'Debug Log Directory .htaccess write failure.', 'forcefield' ) . '<br>';
+	$message .= __( 'It is recommended that you fix this problem manually.', 'forcefield' );
 	// 1.0.1: output warning notice
 	echo '<div class="notice notice-warning">' . esc_html( $message ) . '</div>';
 }
@@ -815,7 +820,10 @@ function forcefield_process_special( $settings ) {
 	// --- loop to update special options ---
 	foreach ( $optionkeys as $key => $type ) {
 		$postkey = 'ff_' . $key;
-		if ( isset($_POST[$postkey] ) ) {
+		// 1.0.4: add phpcs ignore as nonce has already been verified
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( isset( $_POST[$postkey] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$posted = $_POST[$postkey];
 		} else {
 			$posted = '';
@@ -824,7 +832,7 @@ function forcefield_process_special( $settings ) {
 		if ( 'specialtext' == $type ) {
 
 			$test = str_replace( '/', '', $posted );
-			$checkposted = preg_match('/^[a-zA-Z0-9_\-]+$/', $test );
+			$checkposted = preg_match( '/^[a-zA-Z0-9_\-]+$/', $test );
 			if ( $checkposted ) {
 				$settings[$key] = $posted;
 			} else {
@@ -863,7 +871,7 @@ function forcefield_process_special( $settings ) {
 				$settings[$key] = $validips;
 			}
 
-		} elseif ( $type == 'frequency' ) {
+		} elseif ( 'frequency' == $type ) {
 			if ( array_key_exists( $posted, $intervals ) ) {
 				$settings[$key] = $posted;
 			} else {
@@ -883,10 +891,12 @@ function forcefield_process_special( $settings ) {
 	$settings['xmlrpc_roles'] = $settings['restapi_roles'] = array();
 	foreach ( $roles as $role => $label ) {
 		$xmlrpckey = 'ff_xmlrpc_role_' . $role;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST[$xmlrpckey] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			if ( 'yes' == $_POST[$xmlrpckey] ) {
 				$settings['xmlrpc_roles'][] = $role;
-			} elseif ( in_array($role, $settings['xmlrpc_roles'] ) ) {
+			} elseif ( in_array( $role, $settings['xmlrpc_roles'] ) ) {
 				foreach ( $settings['xmlrpc_roles'] as $i => $value ) {
 					if ( $value == $role ) {
 						unset( $settings['xmlrpc_roles'][$i] );
@@ -895,7 +905,9 @@ function forcefield_process_special( $settings ) {
 			}
 		}
 		$restkey = 'ff_restapi_role_' . $role;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST[$restkey] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			if ( 'yes' == $_POST[$restkey] ) {
 				$settings['restapi_roles'][] = $role;
 			} elseif ( in_array( $role, $settings['restapi_roles'] ) ) {
@@ -912,7 +924,9 @@ function forcefield_process_special( $settings ) {
 	// 0.9.1: handle transgression limit updates
 	$limits = forcefield_blocklist_get_default_limits();
 	foreach ( $limits as $key => $limit ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST['ff_limit_' . $key] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$posted = absint( $_POST['ff_limit_' . $key] );
 			// 0.9.6: allow for -1 = auto-pass and 0 = auto-fail
 			if ( $posted < -1 ) {
@@ -946,7 +960,7 @@ function forcefield_alert_message( $message ) {
 // Get General Error Message
 // -------------------------
 function forcefield_get_error_message() {
-	$message = __('Request Failed. Authentication Error.', 'forcefield' );
+	$message = __( 'Request Failed. Authentication Error.', 'forcefield' );
 	$message = apply_filters( 'forcefield_error_message', $message );
 	return $message;
 }
@@ -968,23 +982,24 @@ function forcefield_get_remote_ip( $debug = false ) {
 	$local = false;
 	foreach ( $ipkeys as $ipkey ) {
 		if ( isset( $_SERVER[$ipkey] ) && !empty( $_SERVER[$ipkey] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$ip = $_SERVER[$ipkey];
 
 			// --- filter out server IP match ---
 			// 0.9.3: check remote IP against server IP
 			if ( $ip != $serverip ) {
 				if ( $debug ) {
-					echo "<!-- \$_SERVER[" . $ipkey . "] : " . $ip . " -->";
+					echo "<!-- [\$_SERVER[" . esc_html( $ipkey ) . "] : " . esc_html( $ip ) . " -->";
 				}
-				$iptype = forcefield_get_ip_type( $_SERVER[$ipkey] );
+				$iptype = forcefield_get_ip_type( $ip );
 
 				// 0.9.4: allow 127.0.0.1 and localhost as valid IPs
-				if ( $iptype == 'localhost' ) {
+				if ( 'localhost' == $iptype ) {
 					// note: currently we use this to help distinguish actual IP
 					// a different check is needed here to be truly accurate
 					$local = true;
 				} elseif ( $iptype ) {
-					return $_SERVER[$ipkey];
+					return $ip;
 				}
 			}
 		}
@@ -1012,7 +1027,7 @@ function forcefield_get_remote_ip_keys() {
 		'HTTP_X_SUCURI_CLIENTIP',
 		'HTTP_INCAP_CLIENT_IP',
 		'HTTP_FORWARDED',
-		'HTTP_CLIENT_IP'
+		'HTTP_CLIENT_IP',
 	);
 	$ipkeys = apply_filters( 'forcefield_remote_ip_keys', $ipkeys );
 	return $ipkeys;
@@ -1021,7 +1036,7 @@ function forcefield_get_remote_ip_keys() {
 // ---------------------
 // Get Server IP Address
 // ---------------------
-function forcefield_get_server_ip( $debug=false ) {
+function forcefield_get_server_ip( $debug = false ) {
 
 	// --- check cached server IP ---
 	$serverip = get_transient( 'forcefield_server_ip' );
@@ -1034,7 +1049,7 @@ function forcefield_get_server_ip( $debug=false ) {
 		// --- use DNS lookup of the server host name ---
 		$hostname = $_SERVER['HTTP_HOST'];
 		if ( $debug ) {
-			echo "<!-- Host Name: ".$hostname." -->";
+			echo "<!-- Host Name: " . esc_html( $hostname ) . " -->";
 		}
 		$serverip = gethostbyname( $hostname );
 
@@ -1056,7 +1071,7 @@ function forcefield_get_server_ip( $debug=false ) {
 		return false;
 	}
 	if ( $debug ) {
-		echo "<!-- Server IP: " . $serverip . " -->";
+		echo "<!-- Server IP: " . esc_html( $serverip ) . " -->";
 	}
 
 	// --- cache server IP  ---
@@ -1094,7 +1109,7 @@ function forcefield_is_ip_in_range( $ip, $iprange ) {
 		// --- handle IP4 ranges ---
 		$ipparts = explode( '.', $ip );
 		$rangeparts = explode( '.', $iprange );
-		if ($ipparts[0] != $rangeparts[0] ) {
+		if ( $ipparts[0] != $rangeparts[0] ) {
 			return false;
 		}
 
@@ -1105,7 +1120,8 @@ function forcefield_is_ip_in_range( $ip, $iprange ) {
 			} elseif ( ( $ipparts[$i] == $rangeparts[$i] ) ) {
 				$match = true;
 			} elseif ( strstr( $rangeparts[$i], '-' ) ) {
-				$maxmin = explode( '-', $rangeparts );
+				// 1.0.3: fix to missing key on rangeparts
+				$maxmin = explode( '-', $rangeparts[$i] );
 				if ( ( $ipparts[$i] >= $maxmin[0] ) && ( $ipparts[$i] <= $maxmin[1] ) ) {
 					$match = true;
 				}
@@ -1142,8 +1158,6 @@ function forcefield_forbidden_exit() {
 // 0.9.1: added abstract error wrapper
 function forcefield_filtered_error( $error, $errormessage, $status = false, $errors = false ) {
 
-	global $forcefield;
-
 	if ( !$status ) {
 		$status = 403;
 	}
@@ -1151,14 +1165,16 @@ function forcefield_filtered_error( $error, $errormessage, $status = false, $err
 
 	// --- log errors to debug file ---
 	// 0.9.7: added authentication error logging
-	$datetime = date( 'Y-m-d H:i:s', time() );
+	// 1.0.4: use gmdate instead of date
+	$datetime = gmdate( 'Y-m-d H:i:s', time() );
 	$ip = forcefield_get_remote_ip();
 	$debugline = '[' . $datetime . '] ' . $ip . ': ' . $error . ' - ' . $errormessage . ' (' . $status . ')' . PHP_EOL;
+	// phpcs:ignore WordPress.PHP.DevelopmentFunctions
 	error_log( $debugline, 3, dirname( __FILE__ ) . '/debug/auth-errors.log' );
 	// error_log($debugline);
 
 	// --- return errors ---
-	if ( $errors && ( is_wp_error( $errors ) ) ) {
+	if ( $errors && is_wp_error( $errors ) ) {
 		$errors->add( $error, $errormessage, array( 'status' => $status ) );
 		return $errors;
 	} else {
@@ -1192,10 +1208,10 @@ function forcefield_email_from_name() {
 // ---------------------
 function forcefield_get_transient_timeout( $transient ) {
 	global $wpdb;
-	// TODO: maybe use wpdb->prepare on timeout query value ?
-	$query = "SELECT option_value FROM " . $wpdb->options . " WHERE option_name LIKE '%_transient_timeout_" . $transient . "%'";
-	// $query = "SELECT option_value FROM ".$wpdb->options." WHERE option_name LIKE '%_transient_timeout_%s%'";
-	// $query = $wpdb->prepare($query, $transient);
+	// 1.0.4 use wpdb->prepare on timeout LIKE query
+	// $query = "SELECT option_value FROM " . $wpdb->options . " WHERE option_name LIKE '%_transient_timeout_" . $transient . "%'";
+	$query = "SELECT option_value FROM " . $wpdb->options . " WHERE option_name LIKE %s";
+	$query = $wpdb->prepare( $query, "%_transient_timeout_" . $transient . "%" );
 	$timeout = $wpdb->get_var( $query );
 	return $timeout;
 }
@@ -1204,6 +1220,7 @@ function forcefield_get_transient_timeout( $transient ) {
 // Get CRON Intervals
 // ------------------
 // 0.9.1: get cron intervals, doubles as cron schedule filter
+// phpcs:ignore WordPress.WP.CronInterval.CronSchedulesInterval
 add_filter( 'cron_schedules', 'forcefield_get_intervals' );
 function forcefield_get_intervals( $schedule = array() ) {
 
@@ -1233,7 +1250,7 @@ function forcefield_get_intervals( $schedule = array() ) {
 			$schedule[$key] = $interval;
 		}
 	}
-   	return $schedule;
+	return $schedule;
 }
 
 // --------------------------
