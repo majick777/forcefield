@@ -3610,9 +3610,11 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 // Ad Feed Cache Interval
 // ----------------------
 // 1.8.0: added for ad feed interval
-function wqhelper_ad_feed_interval( $seconds ) {
-	// --- change interval to hourly ---
-	return 3600;
+if ( !function_exists( 'wqhelper_ad_feed_interval' ) ) {
+ function wqhelper_ad_feed_interval( $seconds ) {
+	// --- change feed interval ---
+	return 300;
+ }
 }
 
 
@@ -3628,6 +3630,7 @@ function wqhelper_ad_feed_interval( $seconds ) {
 
 // = 1.8.0 =
 // - Fix WordPress Coding Standards sniffs
+// - Change from script ads to feed ads
 
 // = 1.7.9 =
 // - fix to Admin submenu icon styles
