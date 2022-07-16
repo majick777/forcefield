@@ -456,8 +456,9 @@ add_action( 'wp_ajax_nopriv_forcefield_buddypress', 'forcefield_output_token' );
 // 1.0.1: remove argument and check context from action
 function forcefield_output_token() {
 
+	// 1.0.5: added sanitize_title to request variable
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$action = $_REQUEST['action'];
+	$action = sanitize_title( $_REQUEST['action'] );
 	// 1.0.4: added validation of action possibilities
 	$actions = array(
 		'forcefield_login',
@@ -862,7 +863,7 @@ function forcefield_login_validate( $user, $username, $password ) {
 			// 0.9.9: added check for valid token
 			// 1.0.0: fix to variable posted and preg_match check
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$authtoken = $_POST['auth_token_login'];
+			$authtoken = sanitize_text_field( $_POST['auth_token_login'] );
 			$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 			if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 				do_action( 'forcefield_login_invalid' );
@@ -1048,7 +1049,7 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$authtoken = $_POST['auth_token_register'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_register'] );
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 			do_action( 'forcefield_register_invalid' );
@@ -1213,7 +1214,7 @@ function forcefield_signup_authenticate( $results ) {
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$authtoken = $_POST['auth_token_signup'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_signup'] );
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 			do_action( 'forcefield_signup_invalid' );
@@ -1380,7 +1381,7 @@ function forcefield_lost_password_authenticate( $allow ) {
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to posted variable in preg_match check
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$authtoken = $_POST['auth_token_lostpass'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_lostpass'] );
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 
@@ -1543,7 +1544,7 @@ function forcefield_preprocess_comment( $comment ) {
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to posted variable name for preg_match
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$authtoken = $_POST['auth_token_comment'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_comment'] );
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 			do_action( 'forcefield_comment_invalid' );
@@ -1718,7 +1719,7 @@ function forcefield_buddypress_authenticate() {
 		// 0.9.9: added check for valid token
 		// 1.0.0: fix to variable posted and preg_match check
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$authtoken = $_POST['auth_token_buddypress'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_buddypress'] );
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
 			do_action( 'forcefield_buddypress_invalid' );

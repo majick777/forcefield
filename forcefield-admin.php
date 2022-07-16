@@ -44,8 +44,8 @@ function forcefield_admin_page() {
 	$args = array( $settings['slug'], 'yes' );
 	if ( function_exists( 'wqhelper_sidebar_floatbox' ) ) {
 		wqhelper_sidebar_floatbox( $args );
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		echo wqhelper_sidebar_stickykitscript();
+		// 1.0.5: use echo argument for stickykit script
+		wqhelper_sidebar_stickykitscript( true );
 		echo '<style>#floatdiv {float:right;}</style>';
 		echo '<script>jQuery("#floatdiv").stick_in_parent();
 		wrapwidth = jQuery("#pagewrap").width();
@@ -1120,37 +1120,36 @@ function forcefield_admin_page() {
 				// 1.0.1: add required message for API token key (for wpvulndb API v3)
 				echo '<tr><td colspan="3">' . esc_html( __( 'An API Key is required to use the Vulnerability Checker.', 'forcefield' ) ) . '</td></tr>' . PHP_EOL;
 
-				// --- check API token ---
-				$token = forcefield_get_setting( 'vuln_api_token', false );
-				if ( $token && ( '' != trim( $token ) ) ) {
-					$args = array(
-						'timeout'		=> 5,
-						'user-agent'	=> 'WordPress/' . $wp_version . '; ' . home_url(),
-						'headers' 		=> array( 'Authorization: Token token=' . $token ),
-					);
-					$testurl = 'https://wpvulndb.com/api/v3/wordpresses/4910';
-					$response = forcefield_get_response_data( $testurl, $args );
-					// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-					echo "<!-- API Response: " . esc_html( print_r( $response, true ) ) . " -->" . PHP_EOL;
-					if ( !$response || ( isset( $response['error'] ) && strstr( $response['error'], 'HTTP Token: Access denied.' ) ) ) {
-						$crossurl = plugins_url( 'images/cross.png', __FILE__ );
-						$verified = "<img style='display:inline;' src='" . esc_url( $crossurl ) . "'>";
-						$verified .= " <span style='color:#d50000;'>" . esc_html( __( 'API Key Unverified', 'forcefield' ) ) . "</span>";
-						delete_option( 'forcefield_wbvulndb_verified' );
-					} else {
-						$tickurl = plugins_url( 'images/tick.png', __FILE__ );
-						$verified = "<img style='display:inline;' src='" . esc_url( $tickurl ) . "'>";
-						$verified .= " <span style='color:#00d500;'>" . esc_html( __( 'API Key Verified', 'forcefield' ) ) . "</span>";}
-						update_option( 'forcefield_wbvulndb_verified', true );
-				} else {
-					$verified = '';
-				}
-				echo "<!-- Token Verified: " . esc_html( get_option( 'forcefield_wbvulndb_verified' ) ) . " -->";
-
 				// --- vulnerability checker API key (vuln_api_token) ---
 				echo '<tr><td style="vertical-align:top;padding-top:10px;"><b>' . esc_html( __( 'WPVulnDB API Key', 'forcefield' ) ) . '</b><br>';
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-				echo $verified . '</td><td width="20"></td>';
+
+					// --- check API token ---
+					// 1.0.5: output verified HTML inline instead of storing
+					$token = forcefield_get_setting( 'vuln_api_token', false );
+					if ( $token && ( '' != trim( $token ) ) ) {
+						$args = array(
+							'timeout'		=> 5,
+							'user-agent'	=> 'WordPress/' . $wp_version . '; ' . home_url(),
+							'headers' 		=> array( 'Authorization: Token token=' . $token ),
+						);
+						$testurl = 'https://wpvulndb.com/api/v3/wordpresses/4910';
+						$response = forcefield_get_response_data( $testurl, $args );
+						// phpcs:ignore WordPress.PHP.DevelopmentFunctions
+						echo "<!-- API Response: " . esc_html( print_r( $response, true ) ) . " -->" . PHP_EOL;
+						if ( !$response || ( isset( $response['error'] ) && strstr( $response['error'], 'HTTP Token: Access denied.' ) ) ) {
+							$crossurl = plugins_url( 'images/cross.png', __FILE__ );
+							echo "<img style='display:inline;' src='" . esc_url( $crossurl ) . "'>";
+							echo " <span style='color:#d50000;'>" . esc_html( __( 'API Key Unverified', 'forcefield' ) ) . "</span>";
+							delete_option( 'forcefield_wbvulndb_verified' );
+						} else {
+							$tickurl = plugins_url( 'images/tick.png', __FILE__ );
+							echo "<img style='display:inline;' src='" . esc_url( $tickurl ) . "'>";
+							echo " <span style='color:#00d500;'>" . esc_html( __( 'API Key Verified', 'forcefield' ) ) . "</span>";}
+							update_option( 'forcefield_wbvulndb_verified', true );
+					}
+					echo "<!-- Token Verified: " . esc_html( get_option( 'forcefield_wbvulndb_verified' ) ) . " -->";
+
+				echo '</td><td width="20"></td>';
 				echo '<td colspan="5" style="vertical-align:top">';
 				// 1.0.4: added missing esc_attr wrapper for token
 				echo '<input type="text" name="ff_vuln_api_token" value="' . esc_attr( $token ) . '" style="width:100%;margin-top:10px;">';

@@ -123,7 +123,7 @@ function forcefield_wordquest_submenu_fix() {
 	$args = forcefield_loader_instance()->args;
 	$icon_url = plugins_url( 'images/icon.png', $args['file'] );
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$current = ( isset( $_REQUEST['page'] ) && ( $_REQUEST['page'] == $args['slug'] ) ) ? '1' : '0';
+	$current = ( isset( $_REQUEST['page'] ) && ( sanitize_title( $_REQUEST['page'] ) == $args['slug'] ) ) ? '1' : '0';
 	echo "<script>jQuery(document).ready(function() {if (typeof wordquestsubmenufix == 'function') {
 	wordquestsubmenufix('" . esc_js( $args['slug'] ) . "', '" . esc_url( $icon_url ) . "', '" . esc_js( $current ) . "');} });</script>";
 }
@@ -716,10 +716,13 @@ if ( is_dir( $debugdir ) ) {
 
 		if ( 'direct' == $checkmethod ) {
 			// --- write directly ---
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
 			$fh = fopen( $debughtaccess, 'w' );
-			@fwrite( $fh, $htaccess );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
+			fwrite( $fh, $htaccess );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
 			fclose( $fh );
-			@chmod( $debughtaccess, 0644 );
+			chmod( $debughtaccess, 0644 );
 		} else {
 			// --- write using WP Filesystem ---
 			global $wp_filesystem;
@@ -810,8 +813,8 @@ function forcefield_process_special( $settings ) {
 		'blocklist_whitelist'	=> 'iptextarea',
 		'blocklist_blacklist'	=> 'iptextarea',
 		'blocklist_cooldown'	=> 'frequency',
-		'blocklist_expiry'	=> 'frequency',
-		'blocklist_delete'	=> 'frequency',
+		'blocklist_expiry'		=> 'frequency',
+		'blocklist_delete'		=> 'frequency',
 		'blocklist_cleanups'	=> 'frequency',
 		// 0.9.7: removed restapi_prefix option
 		// 'restapi_prefix'		=> 'specialtext',
@@ -819,18 +822,16 @@ function forcefield_process_special( $settings ) {
 
 	// --- loop to update special options ---
 	foreach ( $optionkeys as $key => $type ) {
+
 		$postkey = 'ff_' . $key;
+
 		// 1.0.4: add phpcs ignore as nonce has already been verified
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		if ( isset( $_POST[$postkey] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$posted = $_POST[$postkey];
-		} else {
-			$posted = '';
-		}
+		// 1.0.5: moved check $_POST to within settings types
 
 		if ( 'specialtext' == $type ) {
 
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : '';
 			$test = str_replace( '/', '', $posted );
 			$checkposted = preg_match( '/^[a-zA-Z0-9_\-]+$/', $test );
 			if ( $checkposted ) {
@@ -840,6 +841,10 @@ function forcefield_process_special( $settings ) {
 			}
 
 		} elseif ( 'iptextarea' == $type ) {
+
+			// 1.0.5: use sanitize_textarea_field on textarea input
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$posted = isset( $_POST[$postkey] ) ? sanitize_textarea_field( $_POST[$postkey] ) : '';
 
 			// 0.9.1: added for IP list textareas
 			if ( trim( $posted ) == '' ) {
@@ -872,6 +877,9 @@ function forcefield_process_special( $settings ) {
 			}
 
 		} elseif ( 'frequency' == $type ) {
+
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : '';
 			if ( array_key_exists( $posted, $intervals ) ) {
 				$settings[$key] = $posted;
 			} else {
@@ -894,7 +902,7 @@ function forcefield_process_special( $settings ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST[$xmlrpckey] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			if ( 'yes' == $_POST[$xmlrpckey] ) {
+			if ( 'yes' == sanitize_title( $_POST[$xmlrpckey] ) ) {
 				$settings['xmlrpc_roles'][] = $role;
 			} elseif ( in_array( $role, $settings['xmlrpc_roles'] ) ) {
 				foreach ( $settings['xmlrpc_roles'] as $i => $value ) {
@@ -908,7 +916,7 @@ function forcefield_process_special( $settings ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST[$restkey] ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			if ( 'yes' == $_POST[$restkey] ) {
+			if ( 'yes' == sanitize_title( $_POST[$restkey] ) ) {
 				$settings['restapi_roles'][] = $role;
 			} elseif ( in_array( $role, $settings['restapi_roles'] ) ) {
 				foreach ( $settings['restapi_roles'] as $i => $value ) {
@@ -1047,7 +1055,9 @@ function forcefield_get_server_ip( $debug = false ) {
 	if ( function_exists( 'gethostbyname' ) ) {
 
 		// --- use DNS lookup of the server host name ---
-		$hostname = $_SERVER['HTTP_HOST'];
+		// 1.8.1: change HTTP_HOST to SERVER_NAME
+		// ref: https://stackoverflow.com/a/11017252/5240159
+		$hostname = $_SERVER['SERVER_NAME'];
 		if ( $debug ) {
 			echo "<!-- Host Name: " . esc_html( $hostname ) . " -->";
 		}
@@ -1211,7 +1221,9 @@ function forcefield_get_transient_timeout( $transient ) {
 	// 1.0.4 use wpdb->prepare on timeout LIKE query
 	// $query = "SELECT option_value FROM " . $wpdb->options . " WHERE option_name LIKE '%_transient_timeout_" . $transient . "%'";
 	$query = "SELECT option_value FROM " . $wpdb->options . " WHERE option_name LIKE %s";
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$query = $wpdb->prepare( $query, "%_transient_timeout_" . $transient . "%" );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	$timeout = $wpdb->get_var( $query );
 	return $timeout;
 }

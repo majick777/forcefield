@@ -25,6 +25,8 @@
 	<config name="ignore_warnings_on_exit" value="1"/>
 
 	<rule ref="WordPress-Extra">
+
+		<!-- General Rules -->
 		<exclude name="WordPress.Files.FileName"/>
 		<exclude name="Squiz.ControlStructures.ControlSignature.NewlineAfterOpenBrace"/>
 		<exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
@@ -35,11 +37,13 @@
 		<exclude name="Generic.Arrays.DisallowShortArraySyntax.Found"/>
 		<exclude name="WordPress.WP.GlobalVariablesOverride.Prohibited"/>
 
+		<!-- Strict Comparisons -->
+		<exclude name="WordPress.PHP.StrictInArray.MissingTrueStrict"/>
+		<exclude name="WordPress.PHP.StrictComparisons.LooseComparison"/>
+
 		<!-- Overzealous Rules -->
 		<exclude name="Squiz.PHP.CommentedOutCode.Found"/>
 		<exclude name="Generic.Files.LineLength.TooLong"/>
-		<exclude name="WordPress.PHP.StrictInArray.MissingTrueStrict"/>
-		<exclude name="WordPress.PHP.StrictComparisons.LooseComparison"/>
 		<exclude name="Generic.Formatting.MultipleStatementAlignment.NotSameWarning"/>
 		<exclude name="Generic.WhiteSpace.ArbitraryParenthesesSpacing.SpaceBeforeClose"/>
 		<exclude name="Generic.WhiteSpace.ArbitraryParenthesesSpacing.SpaceAfterOpen"/>

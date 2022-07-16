@@ -5,7 +5,7 @@
 // ===========================
 //
 // --------------
-// Version: 1.2.4
+// Version: 1.2.5
 // --------------
 // Note: Changelog and structure at end of file.
 //
@@ -134,8 +134,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			}
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( isset( $_REQUEST[$prefix . 'debug'] ) ) {
+				// 1.2.5: use sanitize_text_field on request variable
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				if ( ( '1' == $_REQUEST[$prefix . 'debug'] ) || ( 'yes' == $_REQUEST[$prefix . 'debug'] ) ) {
+				if ( in_array( sanitize_text_field( $_REQUEST[$prefix . 'debug'] ), array( '1', 'yes' ) ) ) {
 					$this->debug = true;
 				}
 			}
@@ -192,9 +193,12 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			if ( !isset( $args['dir'] ) ) {
 				$args['dir'] = dirname( $args['file'] );
 			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
 			$fh = fopen( $args['file'], 'r' );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
 			$data = fread( $fh, 2048 );
 			$this->data = str_replace( "\r", "\n", $data );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions
 			fclose( $fh );
 
 			// --- Version ---
@@ -427,13 +431,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			if ( !isset( $_REQUEST['page'] ) ) {
 				return;
 			}
-			if ( $_REQUEST['page'] != $args['slug'] ) {
+			// 1.0.5: use sanitize_title on request variables
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( sanitize_title( $_REQUEST['page'] ) != $args['slug'] ) {
 				return;
 			}
 			if ( !isset( $_POST[$args['namespace'] . '_update_settings'] ) ) {
 				return;
 			}
-			if ( 'reset' != $_POST[$args['namespace'] . '_update_settings'] ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( 'reset' != sanitize_title( $_POST[$args['namespace'] . '_update_settings'] ) ) {
 				return;
 			}
 
@@ -524,11 +531,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 					// --- get posted value ---
 					// 1.0.6: set null value for unchecked checkbox fix
-					$posted = null;
+					// 1.2.5: moved get posted value to within each type with sanitization
 					$postkey = $args['settings'] . '_' . $key;
-					if ( isset( $_POST[$postkey] ) ) {
-						$posted = $_POST[$postkey];
-					}
 					$newsettings = null;
 
 					// --- maybe validate special options ---
@@ -578,7 +582,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 					if ( $this->debug ) {
 						// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-						echo 'Saving Setting Key ' . esc_html( $key ) . ' (' . esc_html( $postkey ) . '): ' . esc_html( print_r( $posted, true ) ) . '<br>' . PHP_EOL;
+						echo 'Saving Setting Key ' . esc_html( $key ) . ' (' . esc_html( $postkey ) . ')<br>' . PHP_EOL;
 						// phpcs:ignore WordPress.PHP.DevelopmentFunctions
 						echo 'Type: ' . esc_html( $type ) . ' - Valid Options ' . esc_html( $key ) . ': ' . esc_html( print_r( $valid, true ) ) . '<br>' . PHP_EOL;
 					}
@@ -587,6 +591,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					if ( strstr( $type, '/' ) ) {
 
 						// --- implicit radio / select ---
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						$valid = explode( '/', $type );
 						if ( in_array( $posted, $valid ) ) {
 							$settings[$key] = $posted;
@@ -597,6 +602,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						// --- checkbox / toggle ---
 						// 1.0.6: fix to new unchecked checkbox value
 						// 1.0.9: maybe validate to specified checkbox value
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						if ( isset( $values['value'] ) ) {
 							$valid = array( $values['value'] );
 						} else {
@@ -611,14 +617,15 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					} elseif ( 'textarea' == $type ) {
 
 						// --- text area ---
-						// TODO: maybe use sanitize text field ?
-						$posted = stripslashes( $posted );
+						// 1.2.5: use sanitize_textarea_field with stripslashes
+						$posted = isset( $_POST[$postkey] ) ? sanitize_textarea_field( stripslashes( $_POST[$postkey] ) ) : null;
 						$settings[$key] = $posted;
 
 					} elseif ( 'text' == $type ) {
 
 						// --- text field (slug) ---
 						// 1.0.9: move text field sanitization to validation
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						if ( !is_string( $valid ) ) {
 							$valid = 'TEXT';
 						}
@@ -628,6 +635,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 						// --- number field value ---
 						// 1.0.9: added support for number step, minimum and maximum
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						$newsettings = $posted;
 						$valid = 'NUMERIC';
 						if ( isset( $values['step'] ) ) {
@@ -650,8 +658,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 							$optionkey = $args['settings'] . '_' . $key . '-' . $option;
 							if ( isset( $_POST[$optionkey] ) ) {
 								// 1.1.2: check for value if specified
-								if ( ( isset( $values['value'] ) && ( $values['value'] == $_POST[$optionkey] ) )
-								  || ( !isset( $values['value'] ) && ( 'yes' == $_POST[$optionkey] ) ) ) {
+								// 1.2.5: apply sanitize_text_field to posted value
+								if ( ( isset( $values['value'] ) && ( sanitize_text_field( $_POST[$optionkey] ) == $values['value'] ) )
+									|| ( !isset( $values['value'] ) && ( 'yes' == sanitize_text_field( $_POST[$optionkey] ) ) ) ) {
 									// 1.1.0: fixed to save only array of key values
 									$posted[] = $option;
 								}
@@ -663,6 +672,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 						// -- comma separated values ---
 						// 1.0.4: added comma separated values option
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						if ( strstr( $posted, ',' ) ) {
 							$posted = explode( ',', $posted );
 						} else {
@@ -688,6 +698,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					} elseif ( ( 'radio' == $type ) || ( 'select' == $type ) ) {
 
 						// --- explicit radio or select value ---
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
 						if ( is_string( $valid ) ) {
 							$newsettings = $posted;
 						} elseif ( is_array( $valid ) && array_key_exists( $posted, $valid ) ) {
@@ -698,24 +709,55 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 						// --- multiselect values ---
 						// 1.0.9: added multiselect value saving
+						$posted = isset( $_POST[$postkey] ) ? array_map( 'sanitize_text_field', $_POST[$postkey] ) : array();
 						$newsettings = array_values( $posted );
 
 					} elseif ( 'image' == $type ) {
 
 						// --- check attachment ID value ---
 						// 1.1.7: add image attachment ID saving
-						if ( '' != $posted ) {
+						$posted = isset( $_POST[$postkey] ) ? absint( $_POST[$postkey] ) : null;
+						if ( $posted ) {
 							$attachment = wp_get_attachment_image_src( $posted, 'full' );
 							if ( is_array( $attachment ) ) {
 								$settings[$key] = $posted;
 							}
 						}
 
-					} elseif ( ( 'color' == $type ) || ( 'coloralpha' == $type ) ) {
+					} elseif ( 'color' == $type ) {
 
-						// --- color or color alpha setting ---
+						// --- hex color setting ---
 						// 1.1.7: added color picker value saving
-						// TODO: maybe validate this setting ?
+						// 1.2.5: use sanitize_hex_color on color field
+						$posted = isset( $_POST[$postkey] ) ? sanitize_hex_color( $_POST[$postkey] ) : null;
+						$settings[$key] = $posted;
+
+					} elseif ( 'coloralpha' == $type ) {
+
+						// --- color alpha setting ---
+						// 1.2.5: separated color alpha setting condition
+						// 1.2.5: added rgba version of sanitization
+						// ref: https://wordpress.stackexchange.com/a/262578/76440
+						$posted = isset( $_POST[$postkey] ) ? sanitize_text_field( $_POST[$postkey] ) : null;
+						if ( !is_null( $posted ) ) {
+							$posted = str_replace( ' ', '', $posted );
+							$values = array();
+							sscanf( $color, 'rgba(%d,%d,%d,%f)', $values['red'], $values['green'], $values['blue'], $alpha );
+							foreach ( $values as $key => $value ) {
+								$value = absint( $value );
+								if ( $value < 0 ) {
+									$values[$key] = 0;
+								} elseif ( $value > 255 ) {
+									$values[$key] = 255;
+								}
+							}
+							if ( $alpha < 0 ) {
+								$alpha = 0;
+							} elseif ( $alpha > 1 ) {
+								$alpha = 1;
+							}
+							$posted = 'rgba(' . $values['red'] . ',' . $values['green'] . ',' . $values['blue'] . ',' . $alpha . ')';
+						}
 						$settings[$key] = $posted;
 
 					}
@@ -725,12 +767,12 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						// 1.2.0: added isset check for newsetting
 						if ( !is_null( $newsettings ) ) {
 							// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-							echo '(to-validate) ' . esc_html( print_r( $newsettings, true ) ) . '<br>' . PHP_EOL;
+							echo '(To-validate) ' . esc_html( print_r( $newsettings, true ) ) . '<br>' . PHP_EOL;
 						} else {
 							// 1.1.7 handle if (new) key not set yet
 							if ( isset( $settings[$key] ) ) {
 								// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-								echo '(validated) ' . esc_html( print_r( $settings[$key], true ) ) . '<br>' . PHP_EOL;
+								echo '(Validated) ' . esc_html( print_r( $settings[$key], true ) ) . '<br>' . PHP_EOL;
 							} else {
 								echo 'No setting yet for key ' . esc_html( $key ) . '<br>' . PHP_EOL;
 							}
@@ -840,7 +882,6 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				// --- save settings tab ---
 				// 1.2.0: validate and save current settings tab
 				if ( isset( $_POST['settingstab'] ) ) {
-					$currenttab = $_POST['settingstab'];
 					$tabs = array();
 					foreach ( $options as $key => $option ) {
 						if ( isset( $option['tab'] ) && !in_array( $option['tab'], $tabs ) ) {
@@ -848,6 +889,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						}
 					}
 					if ( count( $tabs ) > 0 ) {
+						// 1.2.5: sanitize current tab value before validating
+						$currenttab = sanitize_title( $_POST['settingstab'] );
 						if ( in_array( $currenttab, $tabs ) ) {
 							$settings['settingstab'] = $currenttab;
 						} elseif ( in_array( 'general', $tabs ) ) {
@@ -857,7 +900,6 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						}
 					}
 				}
-
 
 				// --- update the plugin settings ---
 				$settings['savetime'] = time();
@@ -1253,7 +1295,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		public function maybe_load_thickbox() {
 			$args = $this->args;
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_REQUEST['page'] ) && ( $_REQUEST['page'] == $args['slug'] ) ) {
+			if ( isset( $_REQUEST['page'] ) && ( sanitize_title( $_REQUEST['page'] ) == $args['slug'] ) ) {
 				add_thickbox();
 			}
 		}
@@ -1297,8 +1339,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				}
 				echo '<b>' . esc_html( __( 'Contributors' ) ) . '</b>: ' . esc_html( implode( ', ', $parsed['contributors'] ) ) . '<br>' . PHP_EOL;
 				// echo '<b>Donate Link</b>: <a href="' . esc_url( $parsed['donate_link'] ) . '" target="_blank">' . esc_html( $parsed['donate_link'] ) . '</a><br>';
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-				echo '<br>' . $parsed['short_description'] . '<br><br>' . PHP_EOL;
+				// 1.2.5: use wp_kses_post on plugin short description markup
+				echo '<br>' . wp_kses_post( $parsed['short_description'] ) . '<br><br>' . PHP_EOL;
 
 				// --- output sections ---
 				// possible sections: 'description', 'installation', 'frequently_asked_questions',
@@ -1316,24 +1358,23 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						}
 						$title = implode( ' ', $parts );
 						echo '<h3>' . esc_html( $title ) . '</h3>' . PHP_EOL;
-						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-						echo $section;
+						// 1.2.5: use wp_kses_post on readme section output
+						echo wp_kses_post( $section );
 					}
 				}
 				if ( isset( $parsed['remaining_content'] ) && !empty( $remaining_content ) ) {
 					echo '<h3>' . esc_html( __( 'Extra Notes' ) ) . '</h3>' . PHP_EOL;
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $parsed['remaining_content'];
+					// 1.2.5: use wp_kses_post on readme extra notes output
+					echo wp_kses_post( $parsed['remaining_content'] );
 				}
 
 			} else {
 				// --- fallback text-only display ---
 				$contents = str_replace( "\n", '<br>', $contents );
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-				echo $contents;
+				echo wp_kses_post( $contents );
 			}
 
-			echo "</body></html>";
+			echo '</body></html>';
 			exit;
 		}
 
@@ -1389,8 +1430,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- maybe redirect link to plugin support forum ---
 			// TODO: change to use new Freemius 2.3.0 support link filter ?
+			// 1.0.5: use sanitize_text_field on request variable
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_REQUEST['page'] ) && ( $args['slug'] . '-wp-support-forum' == $_REQUEST['page'] ) && is_admin() ) {
+			if ( isset( $_REQUEST['page'] ) && ( sanitize_title( $_REQUEST['page'] ) == $args['slug'] . '-wp-support-forum' ) && is_admin() ) {
 				if ( !function_exists( 'wp_redirect' ) ) {
 					include ABSPATH . WPINC . '/pluggable.php';
 				}
@@ -1673,21 +1715,26 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		// -----------
 		// Message Box
 		// -----------
+		// 1.2.5: use output buffering for no-echo
 		public function message_box( $message, $echo ) {
-			$box = '<table style="background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;">' . PHP_EOL;
-				$box .= '<tr><td>' . PHP_EOL;
-					$box .= '<div class="message" style="margin:0.25em; font-weight:bold;">' . PHP_EOL;
-						$box .= $message . PHP_EOL;
-					$box .= '</div>' . PHP_EOL;
-				$box .= '</td></tr>' . PHP_EOL;
-			$box .= '</table>' . PHP_EOL;
-			if ( $echo ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput,OutputNotEscaped,WordPress.Security.OutputNotEscaped
-				echo $box;
-			} else {
+
+			if ( !$echo ) {
+				ob_start();
+			}
+
+			echo '<table style="background-color: lightYellow; border-style:solid; border-width:1px; border-color: #E6DB55; text-align:center;">' . PHP_EOL;
+				echo '<tr><td>' . PHP_EOL;
+					echo '<div class="message" style="margin:0.25em; font-weight:bold;">' . PHP_EOL;
+						// 1.2.5: added wp_kses_post to message output
+						echo wp_kses_post( $message ) . PHP_EOL;
+					echo '</div>' . PHP_EOL;
+				echo '</td></tr>' . PHP_EOL;
+			echo '</table>' . PHP_EOL;
+			if ( !$echo ) {
+				$box = ob_get_contents();
+				ob_end_clean();
 				return $box;
 			}
-			return '';
 		}
 
 		// ------------
@@ -1703,8 +1750,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			if ( !isset( $_REQUEST['page'] ) ) {
 				return;
 			}
+			// 1.0.5: use sanitize_title on request variable
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( substr( $_REQUEST['page'], 0, strlen( $args['slug'] ) ) != $args['slug'] ) {
+			if ( substr( sanitize_title( $_REQUEST['page'] ), 0, strlen( $args['slug'] ) ) != $args['slug'] ) {
 				return;
 			}
 
@@ -1874,8 +1922,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// 1.0.9: change filter from _plugin_links to disambiguate
 			$links = apply_filters( $args['namespace'] . '_plugin_admin_links', $links );
 			if ( count( $links ) > 0 ) {
-				// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-				echo implode( ' | ', $links );
+				// 1.2.5: use wp_kses_post on output
+				echo wp_kses_post( implode( ' | ', $links ) );
 			}
 
 			// --- author icon ---
@@ -1923,8 +1971,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				$rate_link .= ' ' . esc_html( $rate_text ) . '</a><br><br>' . PHP_EOL;
 				$rate_link = apply_filters( $args['namespace'] . '_rate_link', $rate_link, $args );
 				if ( $rate_link ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $rate_link;
+					// 1.2.5: use wp_kses_post on rate link output
+					echo wp_kses_post( $rate_link );
 				}
 			}
 
@@ -1940,8 +1988,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				$share_link .= esc_html( $share_text ) . '</a><br><br>';
 				$share_link = apply_filters( $args['namespace'] . '_share_link', $share_link, $args );
 				if ( $share_link ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $share_link;
+					// 1.2.5: use wp_kses_post on share link output
+					echo wp_kses_post( $share_link );
 				}
 			}
 
@@ -1957,8 +2005,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				$donate_link .= '<b>' . esc_html( $donate_text ) . '</b></a><br><br>';
 				$donate_link = apply_filters( $args['namespace'] . '_donate_link', $donate_link, $args );
 				if ( $donate_link ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $donate_link;
+					// 1.2.5: use wp_kses_post on donate link output
+					echo wp_kses_post( $donate_link );
 				}
 			}
 
@@ -1968,7 +2016,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			if ( isset( $_GET['updated'] ) ) {
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				$updated = $_GET['updated'];
+				$updated = sanitize_title( $_GET['updated'] );
 				if ( 'yes' == $updated ) {
 					$message = $settings['title'] . ' ' . __( 'Settings Updated.' );
 				} elseif ( 'no' == $updated ) {
@@ -1978,19 +2026,20 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				}
 				if ( isset( $message ) ) {
 					echo '<tr><td></td><td></td><td align="center">' . PHP_EOL;
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $this->message_box( $message, false );
+					// 1.2.5: use direct echo option for message box
+					$this->message_box( $message, true );
 					echo '</td></tr>' . PHP_EOL;
 				}
 			} else {
 				// --- maybe output welcome message ---
+				// 1.0.5: use sanitize_title on request variable
 				// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-				if ( isset( $_REQUEST['welcome'] ) && ( 'true' == $_REQUEST['welcome'] ) ) {
+				if ( isset( $_REQUEST['welcome'] ) && ( 'true' == sanitize_title( $_REQUEST['welcome'] ) ) ) {
 					// 1.2.3: skip output if welcome message argument is empty
 					if ( isset( $args['welcome'] ) && ( '' != $args['welcome'] ) ) {
 						echo '<tr><td colspan="3" align="center">';
-						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-						echo $this->message_box( $args['welcome'], false );
+						// 1.2.5: use direct echo option for message box
+						$this->message_box( $args['welcome'], true );
 						echo '</td></tr>' . PHP_EOL;
 					}
 				}
@@ -2045,25 +2094,32 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// --- maybe enqueue media scripts ---
 			// 1.1.7: added media gallery script enqueueing for image field
 			// 1.1.7: added color picker and color picker alpha script enqueueing
-			$enqueued_media = $enqueued_color_picker = $enqueued_color_picker_alpha = false;
+			$enqueued_media = $enqueued_color_picker = $enqueue_color_picker = $enqueue_color_picker_alpha = false;
 			foreach ( $options as $option ) {
 				if ( ( 'image' == $option['type'] ) && !$enqueued_media ) {
 					wp_enqueue_media();
 					$enqueued_media = true;
-				} elseif ( ( 'color' == $option['type'] ) && !$enqueued_color_picker ) {
-					wp_enqueue_style( 'wp-color-picker' );
-					wp_enqueue_script( 'wp-color-picker' );
-					$enqueued_color_picker = true;
-				} elseif ( ( 'coloralpha' == $option['type'] ) && !$enqueued_color_picker_alpha ) {
-					wp_enqueue_style( 'wp-color-picker' );
-					$suffix = '.min';
-					if ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) {
-						$suffix = '';
-					}
-					$url = plugins_url( '/js/wp-color-picker-alpha' . $suffix . '.js', $args['file'] );
-					wp_enqueue_script( 'wp-color-picker-a', $url, array( 'wp-color-picker' ), '3.0.0', true );
-					$enqueued_color_picker = $enqueued_color_picker_alpha = true;
+				} elseif ( 'color' == $option['type'] ) { 
+					$enqueue_color_picker = true;
+				} elseif ( 'coloralpha' == $option['type'] ) {
+					$enqueue_color_picker_alpha = true;
 				}
+			}
+
+			// 1.2.5: moved out of 
+			if ( $enqueue_color_picker_alpha ) {
+				wp_enqueue_style( 'wp-color-picker' );
+				$suffix = '.min';
+				if ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) {
+					$suffix = '';
+				}
+				$url = plugins_url( '/js/wp-color-picker-alpha' . $suffix . '.js', $args['file'] );
+				wp_enqueue_script( 'wp-color-picker-a', $url, array( 'wp-color-picker' ), '3.0.0', true );
+				$enqueued_color_picker = true;
+			} elseif ( $enqueue_color_picker ) {
+				wp_enqueue_style( 'wp-color-picker' );
+				wp_enqueue_script( 'wp-color-picker' );
+				$enqueued_color_picker = true;			
 			}
 
 			$defaults = $this->default_settings();
@@ -2126,16 +2182,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 				// --- output tab switcher script ---
 				// 1.0.9: add to settings scripts
-				$script = "function settings_display_tab(tab) {" . PHP_EOL;
-					foreach ( $tabs as $tab => $label ) {
-						$script .= "document.getElementById('" . esc_js( $tab ) . "-tab-button').className = 'settings-tab-button inactive';" . PHP_EOL;
-						$script .= "document.getElementById('" . esc_js( $tab ) . "-tab').className = 'settings-tab inactive'; " . PHP_EOL;
-					}
-					$script .= "document.getElementById(tab+'-tab-button').className = 'settings-tab-button active';" . PHP_EOL;
-					$script .= "document.getElementById(tab+'-tab').className = 'settings-tab active';" . PHP_EOL;
-					$script .= "document.getElementById('settings-tab').value = tab;" . PHP_EOL;
-				$script .= "}";
-				$this->scripts[] = $script;
+				// 1.2.5: only store script reference
+				$this->scripts[] = 'tab_switcher';
 
 				$i = 0;
 				echo '<ul id="settings-tab-buttons">' . PHP_EOL;
@@ -2144,9 +2192,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					if ( ( $tab == $currenttab ) || ( ( '' == $currenttab ) && ( 0 == $i ) ) ) {
 						$class = 'active';
 					}
-					echo '<li id="' . esc_attr( $tab ) . '-tab-button" class="settings-tab-button ' . esc_attr( $class ) . '" onclick="';
-					echo "settings_display_tab('" . esc_attr( $tab ) . "');";
-					echo '">' . esc_html( $tablabel ) . '</li>' . PHP_EOL;
+					// 1.2.5: remove onclick attribute and use jQuery click function
+					// onclick="plugin_panel_display_tab(\'' . esc_attr( $tab ) . '\');"
+					echo '<li id="' . esc_attr( $tab ) . '-tab-button" class="settings-tab-button ' . esc_attr( $class ) . '">' . esc_html( $tablabel ) . '</li>' . PHP_EOL;
 					$i ++;
 				}
 				echo '</ul>' . PHP_EOL;
@@ -2156,13 +2204,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- reset to default script ---
 			// 1.0.9: add to settings scripts
-			$confirmreset = __( 'Are you sure you want to reset to default settings?' );
-			$script = "function settings_reset_defaults() {
-				agree = confirm('" . esc_js( $confirmreset ) . "'); if (!agree) {return false;}
-				document.getElementById('settings-action').value = 'reset';
-				document.getElementById('settings-form').submit();
-			}";
-			$this->scripts[] = $script;
+			$this->scripts[] = 'settings_reset';
 
 			// --- start settings form ---
 			// 1.2.0: remove unused prefix on settings tab name attribute
@@ -2203,15 +2245,11 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						if ( array_key_exists( $section, $taboptions[$tab] ) ) {
 
 							// --- section top ---
-							ob_start();
+							// 1.2.5: fix to mismatched class setting-section-bottom
+							echo '<tr class="setting-section-top"><td colspan="5">' . PHP_EOL;
+							// 1.2.5: use do_action directly instead of using stored output
 							do_action( $namespace . '_admin_page_section_' . $section . '_top' );
-							$output = ob_get_clean();
-							if ( $output ) {
-								echo '<tr class="setting-section-bottom"><td colspan="5">' . PHP_EOL;
-								// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-								echo $output;
-								echo '</td></tr>' . PHP_EOL;
-							}
+							echo '</td></tr>' . PHP_EOL;
 
 							// --- section heading ---
 							if ( !isset( $sectionheadings[$section] ) ) {
@@ -2224,21 +2262,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 							// --- section setting rows ---
 							foreach ( $taboptions[$tab][$section] as $key => $option ) {
 								$option['key'] = $key;
-								// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-								echo $this->setting_row( $option );
+								// 1.2.5: use wp_kses on setting row output with custom allowed HTML
+								echo wp_kses( $this->setting_row( $option ), $this->allowed_html( $option ) );
 							}
 							echo '<tr height="25"><td> </td></tr>' . PHP_EOL;
 
 							// --- section bottom hook ---
-							ob_start();
+							echo '<tr class="setting-section-bottom"><td colspan="5">';
+							// 1.2.5: use do_action directly instead of using stored output
 							do_action( $namespace . '_admin_page_section_' . $section . '_bottom' );
-							$output = ob_get_clean();
-							if ( $output ) {
-								echo '<tr class="setting-section-bottom"><td colspan="5">';
-								// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-								echo $output;
-								echo '</td></tr>' . PHP_EOL;
-							}
+							echo '</td></tr>' . PHP_EOL;
 
 						}
 
@@ -2247,8 +2280,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 					foreach ( $taboptions[$tab]['general'] as $key => $option ) {
 						$option['key'] = $key;
 						echo '<tr height="25"><td> </td></tr>' . PHP_EOL;
-						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-						echo $this->setting_row( $option );
+						// 1.2.5: use wp_kses_post on setting output with custom allowed HTML
+						echo wp_kses( $this->setting_row( $option ), $this->allowed_html( $option ) );
 						echo '<tr height="25"><td> </td></tr>' . PHP_EOL;
 					}
 				}
@@ -2257,15 +2290,16 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				// (filtered so removable from any specific tab)
 				$buttons = '<tr height="25"><td> </td></tr>' . PHP_EOL;
 				$buttons .= '<tr><td align="center">' . PHP_EOL;
-				$buttons .= '<input type="button" class="button-secondary settings-button" onclick="return settings_reset_defaults();" value="' . esc_attr( __( 'Reset Settings' ) ) . '">' . PHP_EOL;
+				// 1.2.5: remove reset onclick attribute
+				$buttons .= '<input type="button" id="settingsresetbutton" class="button-secondary settings-button" value="' . esc_attr( __( 'Reset Settings' ) ) . '">' . PHP_EOL;
 				$buttons .= '</td><td colspan="3"></td><td align="center">' . PHP_EOL;
 				$buttons .= '<input type="submit" class="button-primary settings-button" value="' . esc_attr( __( 'Save Settings' ) ) . '">' . PHP_EOL;
 				$buttons .= '</td></tr>' . PHP_EOL;
 				$buttons .= '<tr height="25"><td></td></tr>' . PHP_EOL;
 				$buttons = apply_filters( $namespace . '_admin_save_buttons', $buttons, $tab );
 				if ( $buttons ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $buttons;
+					// 1.2.5: use wp_kses on filtered buttons output
+					echo wp_kses( $buttons, $this->allowed_html() );
 				}
 
 				// --- close table ---
@@ -2290,6 +2324,64 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$this->settings_resources( $enqueued_media, $enqueued_color_picker );
 		}
 
+		// ---------------------
+		// Allowed Inputs Filter
+		// ---------------------
+		// 1.2.5: added allowed inputs filter
+		public function allowed_html( $option = false ) {
+
+			$namespace = $this->namespace;
+
+			// --- get default allowed post HTML ---
+			$allowed = wp_kses_allowed_html( 'post' );
+
+			// --- input ---
+			$allowed['input'] = array(
+				'id'			=> array(),
+				'class'			=> array(),
+				'name'			=> array(),
+				'value'			=> array(),
+				'type'			=> array(),
+				'data'			=> array(),
+				'placeholder'	=> array(),
+				'data-alpha-enabled' => array(),
+				'data-default-color' => array(),
+			);
+
+			// --- textarea ---
+			$allowed['textarea'] = array(
+				'id'			=> array(),
+				'class'			=> array(),
+				'name'			=> array(),
+				'value'			=> array(),
+				'type'			=> array(),
+				'placeholder'	=> array(),
+			);
+
+			// --- select ---
+			$allowed['select'] = array(
+				'id'			=> array(),
+				'class'			=> array(),
+				'name'			=> array(),
+				'value'			=> array(),
+				'type'			=> array(),
+				'multiselect'	=> array(),
+			);
+
+			// --- select option ---
+			$allowed['option'] = array(
+				'selected' => array(),
+			);
+
+			// --- option group ---
+			$allowed['optgroup'] = array(
+				'label' => array(),
+			);
+
+			$allowed = apply_filters( $namespace . '_settings_allowed_html', $allowed, $option );
+			return $allowed;
+		}
+
 		// ------------------
 		// Settings Resources
 		// ------------------
@@ -2300,75 +2392,17 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			// --- number input step script ---
 			// 1.0.9: added to script array
 			// 1.1.8: fix to check for no mix or max value
-			$script = "function settings_number_step(updown, id, min, max, step) {
-				if (updown == 'up') {multiplier = 1;} else if (updown == 'down') {multiplier = -1;}
-				current = parseInt(document.getElementById(id).value);
-				newvalue = current + (multiplier * parseInt(step));
-				if ((min !== false) && (newvalue < parseInt(min))) {newvalue = min;}
-				if ((max !== false) && (newvalue > parseInt(max))) {newvalue = max;}
-				document.getElementById(id).value = newvalue;
-			}";
-			$this->scripts[] = $script;
+			$this->scripts[] = 'number_step';
 
 			// --- image selection script ---
 			// 1.1.7: added for image field type
 			if ( $media ) {
-				$confirm_remove = __( 'Are you sure you want to remove this image?' );
-				$script = "jQuery(function(){
-
-					var mediaframe, parentdiv;
-
-					/* Add Image on Click */
-					jQuery('.upload-custom-image').on( 'click', function( event ) {
-
-						event.preventDefault();
-						parentdiv = jQuery(this).parent().parent();
-
-						if (mediaframe) {mediaframe.open(); return;}
-						mediaframe = wp.media({
-							title: 'Select or Upload Image',
-							button: {text: 'Use this Image'},
-							multiple: false
-						});
-
-						mediaframe.on( 'select', function() {
-							var attachment = mediaframe.state().get('selection').first().toJSON();
-							image = '<img src=\"'+attachment.url+'\" alt=\"\" style=\"max-width:100%;\"/>';
-							parentdiv.find('.custom-image-container').append(image);
-							parentdiv.find('.custom-image-id').val(attachment.id);
-							parentdiv.find('.upload-custom-image').addClass('hidden');
-							parentdiv.find('.delete-custom-image').removeClass('hidden');
-						});
-
-						mediaframe.open();
-						jQuery('.media-modal-close').on( 'click', function() {
-							console.log('close click detected');
-							mediaframe.close();
-						});
-					});
-
-					/* Delete Image on Click */
-					jQuery('.delete-custom-image').on( 'click', function( event ) {
-						event.preventDefault();
-						agree = confirm('" . esc_js( $confirm_remove ) . "');
-						if (!agree) {return;}
-						parentdiv = jQuery(this).parent().parent();
-						parentdiv.find('.custom-image-container').html('');
-						parentdiv.find('.custom-image-id').val('');
-						parentdiv.find('.upload-custom-image').removeClass('hidden');
-						parentdiv.find('.delete-custom-image').addClass('hidden');
-					});
-
-				});";
-				$this->scripts[] = $script;
+				$this->scripts[] = 'media_functions';
 			}
 
 			// --- color picker script ---
 			if ( $color_picker ) {
-				$script = "jQuery(document).ready(function(){
-					if (jQuery('.color-picker').length) {jQuery('.color-picker').wpColorPicker();}
-				});";
-				$this->scripts[] = $script;
+				$this->scripts[] = 'colorpicker_init';
 			}
 
 			// --- enqueue settings scripts ---
@@ -2774,15 +2808,23 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						} else {
 							$step = 1;
 						}
+
 						// 1.1.7: remove esc_js from onclick attributes
-						$onclickup = "settings_number_step('up', '" . esc_attr( $name ) . "', " . esc_attr( $min ) . ", " . esc_attr( $max ) . ", " . esc_attr( $step ) . ");" . PHP_EOL;
-						$onclickdown = "settings_number_step('down', '" . esc_attr( $name ) . "', " . esc_attr( $min ) . ", " . esc_attr( $max ) . ", " . esc_attr( $step ) . ");" . PHP_EOL;
-						$row .= '<input class="setting-button button-secondary" type="button" value="-" onclick="' . $onclickdown . '">' . PHP_EOL;
-						$row .= '<input class="setting-numeric" type="text" name="' . esc_attr( $name ) . '" id="' . esc_attr( $name ) . '" value="' . esc_attr( $setting ) . '" placeholder="' . esc_attr( $placeholder ) . '">' . PHP_EOL;
-						$row .= '<input class="setting-button button-secondary" type="button" value="+" onclick="' . $onclickup . '">' . PHP_EOL;
+						// $onclickdown = "plugin_panel_number_step('down', '" . esc_attr( $name ) . "', " . esc_attr( $min ) . ", " . esc_attr( $max ) . ", " . esc_attr( $step ) . ");" . PHP_EOL;
+						// $row .= '<input class="setting-button button-secondary" type="button" value="-" onclick="' . $onclickdown . '">' . PHP_EOL;
+						$row .= '<input class="number-button number-down-button setting-button button-secondary" type="button" value="-" data="' . esc_attr( $name ) . '">' . PHP_EOL;
+						if ( isset( $option['prefix'] ) ) {
+							$row .= ' ' . $option['prefix'];
+						}
+						$data = esc_attr( $min ) . "," . esc_attr( $max ) . "," . esc_attr( $step );
+						$row .= '<input id="number-input-' . esc_attr( $name ) . '" class="setting-numeric" type="text" name="' . esc_attr( $name ) . '" value="' . esc_attr( $setting ) . '" placeholder="' . esc_attr( $placeholder ) . '" data="' . esc_attr( $data ) . '">' . PHP_EOL;
 						if ( isset( $option['suffix'] ) ) {
 							$row .= ' ' . $option['suffix'];
 						}
+						// $onclickup = "plugin_panel_number_step('up', '" . esc_attr( $name ) . "', " . esc_attr( $min ) . ", " . esc_attr( $max ) . ", " . esc_attr( $step ) . ");" . PHP_EOL;
+						// $row .= '<input class="setting-button button-secondary" type="button" value="+" onclick="' . $onclickup . '">' . PHP_EOL;
+						$row .= '<input class="number-button number-up-button setting-button button-secondary" type="button" value="+" data="' . esc_attr( $name ) . '">' . PHP_EOL;
+
 
 					} elseif ( 'image' == $type ) {
 
@@ -2861,13 +2903,144 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 		// 1.0.9: added settings page scripts
 		public function setting_scripts() {
 
+			$args = $this->args;
 			$scripts = $this->scripts;
 			if ( count( $scripts ) > 0 ) {
 				echo "<script>";
 				foreach ( $scripts as $script ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $script . PHP_EOL;
+
+					// 1.2.5: output scripts based on stored script keys
+					if ( 'tab_switcher' == $script ) {
+
+						// --- output tab switcher function ---
+						// 1.2.5: changed function prefix for consistency
+						/* echo "function plugin_panel_display_tab(tab) {" . PHP_EOL;
+						foreach ( $tabs as $tab => $label ) {
+							echo "	document.getElementById('" . esc_js( $tab ) . "-tab-button').className = 'settings-tab-button inactive';" . PHP_EOL;
+							echo "	document.getElementById('" . esc_js( $tab ) . "-tab').className = 'settings-tab inactive'; " . PHP_EOL;
+						}
+						echo "	document.getElementById(tab+'-tab-button').className = 'settings-tab-button active';" . PHP_EOL;
+						echo "	document.getElementById(tab+'-tab').className = 'settings-tab active';" . PHP_EOL;
+						echo "	document.getElementById('settings-tab').value = tab;" . PHP_EOL;
+						echo "}" . PHP_EOL; */
+
+						// 1.2.5: use jQuery click function to remove onclick button attributes
+						echo "jQuery('.settings-tab-button').on('click', function() {" . PHP_EOL;
+						echo "	tab = jQuery(this).attr('id').replace('-tab-button','');" . PHP_EOL;
+						echo "	jQuery('.settings-tab,.settings-tab-button').removeClass('active').addClass('inactive');" . PHP_EOL;
+						echo "	jQuery('#'+tab+'-tab,#'+tab+'-tab-button').removeClass('inactive').addClass('active');" . PHP_EOL;
+						echo "	jQuery('#settings-tab').val(tab);" . PHP_EOL;
+						echo "});" . PHP_EOL;
+
+					} elseif ( 'settings_reset' == $script ) {
+
+						// --- reset settings function ---
+						// 1.2.5: changed function prefix for consistency
+						// 1.2.5: changed to jQuery click function to remove onclick button attribute
+						$confirmreset = __( 'Are you sure you want to reset to default settings?' );
+						// echo "function plugin_panel_reset_defaults() {" . PHP_EOL;
+						echo "jQuery('#settingsresetbutton').on('click', function() {" . PHP_EOL;
+						echo "	agree = confirm('" . esc_js( $confirmreset ) . "');" . PHP_EOL;
+						echo "	if (!agree) {return false;}" . PHP_EOL;
+						echo "	document.getElementById('settings-action').value = 'reset';" . PHP_EOL;
+						echo "	document.getElementById('settings-form').submit();" . PHP_EOL;
+						echo "});" . PHP_EOL;
+						// echo "}" . PHP_EOL;
+
+					} elseif ( 'number_step' == $script ) {
+
+						// --- number step function ---
+						// 1.2.5: changed function prefix for consistency
+						/*echo "function plugin_panel_number_step(updown, id, min, max, step) {
+							if (updown == 'up') {multiplier = 1;} else if (updown == 'down') {multiplier = -1;}
+							current = parseInt(document.getElementById(id).value);
+							newvalue = current + (multiplier * parseInt(step));
+							if ((min !== false) && (newvalue < parseInt(min))) {newvalue = min;}
+							if ((max !== false) && (newvalue > parseInt(max))) {newvalue = max;}
+							document.getElementById(id).value = newvalue;
+						}" . PHP_EOL; */
+						// 1.2.5: replace with jQuery click function to remove onclick attributes
+						echo "jQuery('.number-button').on('click', function() {
+							if (jQuery(this).hasClass('number-up-button')) {multiplier = 1;}
+							else if (jQuery(this).hasClass('number-down-button')) {multiplier = -1;}
+							idref = 'number-input-'+jQuery(this).attr('data');
+							data = jQuery('#'+idref).attr('data').split(',');
+							min = data[0]; max = data[1]; step = data[2];
+							value = parseInt(jQuery('#'+idref).val());
+							newvalue = value + (multiplier * parseInt(step));
+							if ((min !== false) && (newvalue < parseInt(min))) {newvalue = min;}
+							if ((max !== false) && (newvalue > parseInt(max))) {newvalue = max;}
+							jQuery('#'+idref).val(newvalue);
+						});" . PHP_EOL;
+
+					} elseif ( 'media_functions' == $script ) {
+
+						// --- media functions ---
+						$confirm_remove = __( 'Are you sure you want to remove this image?' );
+						echo "jQuery(function(){
+
+							var mediaframe, parentdiv;
+
+							/* Add Image on Click */
+							jQuery('.upload-custom-image').on( 'click', function( event ) {
+
+								event.preventDefault();
+								parentdiv = jQuery(this).parent().parent();
+
+								if (mediaframe) {mediaframe.open(); return;}
+								mediaframe = wp.media({
+									title: 'Select or Upload Image',
+									button: {text: 'Use this Image'},
+									multiple: false
+								});
+
+								mediaframe.on( 'select', function() {
+									var attachment = mediaframe.state().get('selection').first().toJSON();
+									image = '<img src=\"'+attachment.url+'\" alt=\"\" style=\"max-width:100%;\"/>';
+									parentdiv.find('.custom-image-container').append(image);
+									parentdiv.find('.custom-image-id').val(attachment.id);
+									parentdiv.find('.upload-custom-image').addClass('hidden');
+									parentdiv.find('.delete-custom-image').removeClass('hidden');
+								});
+
+								mediaframe.open();
+								jQuery('.media-modal-close').on( 'click', function() {
+									console.log('close click detected');
+									mediaframe.close();
+								});
+							});
+
+							/* Delete Image on Click */
+							jQuery('.delete-custom-image').on( 'click', function( event ) {
+								event.preventDefault();
+								agree = confirm('" . esc_js( $confirm_remove ) . "');
+								if (!agree) {return;}
+								parentdiv = jQuery(this).parent().parent();
+								parentdiv.find('.custom-image-container').html('');
+								parentdiv.find('.custom-image-id').val('');
+								parentdiv.find('.upload-custom-image').removeClass('hidden');
+								parentdiv.find('.delete-custom-image').addClass('hidden');
+							});
+
+						});" . PHP_EOL;
+
+					} elseif ( 'colorpicker_init' == $script ) {
+
+						// --- initialize color pickers ---
+						echo "jQuery(document).ready(function(){" . PHP_EOL;
+						echo "	if (jQuery('.color-picker').length) {jQuery('.color-picker').wpColorPicker();}" . PHP_EOL;
+						echo "});" . PHP_EOL;
+
+					}
+					// else {
+						// [no longer implemented - no escape option]
+						// echo $script;
+					// }
 				}
+
+				// 1.2.5: added for possible extra settings scripts
+				do_action( $args['namespace'] . '_settings_scripts', $args );
+
 				echo "</script>";
 			}
 		}
@@ -2909,8 +3082,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$styles[] = '.settings-input input.setting-radio {}';
 			$styles[] = '.settings-input input.setting-checkbox {}';
 			$styles[] = '.settings-input input.setting-text {width:100%;}';
-			$styles[] = '.settings-input input.setting-numeric {display:inline-block; width:50%; text-align:center;}';
+			$styles[] = '.settings-input input.setting-numeric {display:inline-block; width:50%; text-align:center; vertical-align:middle;}';
 			$styles[] = '.settings-input input.setting-button {display:inline-block; padding:0px 5px;}';
+			$styles[] = '.settings-input input.setting-button.number-down-button {padding:9px 7px;}';
 			$styles[] = '.settings-input input.setting-textarea {width:100%;}';
 			$styles[] = '.settings-input select.setting-select {min-width:100px; max-width:100%;}';
 
@@ -2939,8 +3113,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$namespace = $this->namespace;
 			$styles = apply_filters( $namespace . '_admin_page_styles', $styles );
 			echo "<style>";
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-			echo implode( "\n", $styles );
+			// 1.2.5: added wp_strip_all_tags to styles output
+			echo wp_strip_all_tags( implode( "\n", $styles ) );
 			echo "</style>";
 
 		}
@@ -3259,6 +3433,15 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // =========
 // CHANGELOG
 // =========
+
+// == 1.2.5 ==
+// - improved posted value input sanitization
+// - corrected textarea field sanitization
+// - added color and color alpha sanitization
+// - use wp_kses and allowed HTML on outputs
+
+// == 1.2.4 ==
+// - fix to missing declaration on new settings_resources function
 
 // == 1.2.3 ==
 // - added separate enqueueing of settings resources

@@ -4,7 +4,7 @@
 // === WORDQUEST PLUGIN HELPER ===
 // ===============================
 
-$wordquestversion = '1.8.0';
+$wordquestversion = '1.8.1';
 
 // === Notes ===
 // - Changelog at end of this file
@@ -99,8 +99,9 @@ if ( !function_exists( 'wqhelper_admin_loader' ) ) {
 	// --- maybe set debug mode ---
 	// 1.6.6: check debug switch here so we can check permissions
 	if ( current_user_can( 'manage_options' ) ) {
+		// 1.8.1: use sanitize_text_field on request variable
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_REQUEST['wqdebug'] ) && in_array( $_REQUEST['wqdebug'], array( '1', 'yes' ) ) ) {
+		if ( isset( $_REQUEST['wqdebug'] ) && in_array( sanitize_title( $_REQUEST['wqdebug'] ), array( '1', 'yes' ) ) ) {
 			$wqdebug = true;
 		}
 	}
@@ -425,11 +426,13 @@ if ( !function_exists( 'wqhelper_update_sidebar_boxes' ) ) {
 	if ( !isset( $_POST['wqhv'] ) ) {
 		return;
 	} else {
+		// 1.8.1: sanitize to integer and cast to string
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$wqhv = $_POST['wqhv'];
+		$wqhv = (string) absint( $_POST['wqhv'] );
 	}
 	// 1.6.6: added sanitization of version value
-	if ( !is_numeric( $wqhv ) || ( strlen( $wqhv ) !== 3 ) ) {
+	// 1.8.1: simplified to check for 3 digits only
+	if ( strlen( $wqhv ) !== 3 ) {
 		return;
 	}
 
@@ -513,13 +516,10 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	echo "</script>";
 
 	// --- output notice box ---
-	$adminnotices = ''; // $adminnotices = '('.$notices.')';
 	echo '<div style="width:680px" id="adminnoticebox" class="postbox">';
 	echo '<h3 class="hndle" style="margin:7px 14px;font-size:12pt;" onclick="wq_togglenoticebox();">';
 	echo '<span id="adminnoticearrow">&#9662;</span> &nbsp; ';
 	echo esc_html( wqhelper_translate( 'Admin Notices' ) );
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-	echo $adminnotices;
 	echo '</span></h3><div id="adminnoticewrap" style="display:none;"><h2></h2></div></div>';
 
  };
@@ -752,10 +752,11 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 
 		// --- check conditions ---
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$pluginslug = $_REQUEST['slug'];
+		$pluginslug = sanitize_title( $_REQUEST['slug'] );
+		// 1.8.1: sanitize to integer and validate against array
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$notice = $_REQUEST['notice'];
-		if ( ( '30' != $notice ) && ( '90' != $notice ) && ( '365' != $notice ) ) {
+		$notice = absint( $_REQUEST['notice'] );
+		if ( !in_array( $notice, array( 30, 90, 365 ) ) ) {
 			return;
 		}
 
@@ -880,8 +881,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 
 	// --- load sticky kit on sidebar ---
 	// 1.6.5: replace floatmenu with stickykit
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-	echo wqhelper_sidebar_stickykitscript();
+	// 1.8.1: use new echo argument on stickykit function
+	wqhelper_sidebar_stickykitscript( true );
 	echo "<style>#floatdiv {float:right;} #wpcontent, #wpfooter {margin-left:150px !important;}</style>";
 	echo "<script>jQuery('#floatdiv').stick_in_parent();</script>";
 	unset( $wordquestplugins['wordquest'] );
@@ -1521,8 +1522,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 					$themeupdates = bioship_admin_theme_updates_available();
 					if ( '' != $themeupdates ) {
 						echo '<div class="update-nag" style="padding:3px 10px;margin:0 0 10px 0;text-align:center;">';
-						// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-						echo $themeupdates;
+						echo wp_kses_post( $themeupdates );
 						echo '</div></font><br>';
 					}
 				}
@@ -1754,9 +1754,9 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	if ( !isset( $_REQUEST['plugin'] ) ) {
 		wp_die( esc_html( wqhelper_translate( 'Error: No Plugin specified.' ) ) );
 	}
-	$pluginslug = $_REQUEST['plugin'];
 	// 1.5.9: sanitize plugin slug
-	$pluginslug = sanitize_title( $pluginslug );
+	// 1.8.1: combined sanitize_title on same line
+	$pluginslug = sanitize_title( $_REQUEST['plugin'] );
 	if ( '' == $pluginslug ) {
 		wp_die( esc_html( wqhelper_translate( 'Error: Invalid Plugin slug specified.' ) ) );
 	}
@@ -1787,8 +1787,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 		$message = esc_html( wqhelper_translate( 'Failed to retrieve download package information.' ) );
 		$message .= ' <a href="' . esc_url( $tryagainurl ) . '">';
 		$message .= esc_html( wqhelper_translate( 'Click here to try again.' ) ) . '</a>';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		wp_die( $message );
+		// 1.8.1: use wp_kses_post on message
+		wp_die( wp_kses_post( $message ) );
 	}
 
 	// 1.6.5: pass the package download URL to WordPress to do the rest
@@ -1808,7 +1808,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	);
 
 	// --- custom Plugin_Upgrader (via /wp-admin/upgrade.php) ---
-	// 1.8.0: fix to function typo wqhelper_translage
+	// 1.8.0: fix to function typo wqhelper_translate
 	$title = wqhelper_translate( 'Upload Plugin' );
 	$parent_file = 'plugins.php';
 	$submenu_file = 'plugin-install.php';
@@ -1980,25 +1980,54 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 		echo '<h3>' . esc_html( wqhelper_translate( 'Update Settings' ) ) . '</h3>';
 		echo '<div class="inside"><center>';
 
+		$savebuttontrigger = $sidebaroptionsbutton = false;
 		if ( 'yes' == $savebutton ) {
-			$button = "<script>function wq_sidebar_save_settings() {jQuery('#plugin-settings-save').trigger('click');}</script>";
-			$button .= '<table><tr>';
+
+			$savebuttontrigger = $sidebaroptionsbutton = true;
+
+			// --- set button output ---
+			// 1.8.1: remove onclick attributes from buttons to script
+			$button = '<table><tr>';
 				$button .= '<td align="center">';
-					$button .= '<input id="sidebarsavebutton" onclick="wq_sidebar_save_settings();" type="button" class="button-primary" value="Save Settings">';
+					$button .= '<input id="sidebarsavebutton" type="button" class="button-primary" value="Save Settings">';
 				$button .= '</td><td width="30"></td><td>';
-					$button .= '<div style="line-height:1em;"><font style="font-size:8pt;"><a href="javascript:void(0);" style="text-decoration:none;" onclick="wq_showhide_div(\'sidebarsettings\');wq_hide_sidebar_saved();">' . esc_html( wqhelper_translate( 'Sidebar' ) ) . '<br>';
+					$button .= '<div style="line-height:1em;"><font style="font-size:8pt;"><a href="javascript:void(0);" id="sidebaroptionsbutton" style="text-decoration:none;">' . esc_html( wqhelper_translate( 'Sidebar' ) ) . '<br>';
 					$button .= esc_html( wqhelper_translate( 'Options' ) ) . '</a></font></div>';
 				$button .= '</td>';
 			$button .= '</tr></table>';
 			$button = apply_filters( 'wordquest_sidebar_save_button', $button, $pluginslug );
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-			echo $button;
+			// 1.8.1: use wp_kses_post on button
+			echo wp_kses_post( $button );
+
 		} elseif ( 'no' == $savebutton ) {
+
 			echo '';
+
 		} else {
+
+			// --- show sidebar save options only ---
+			$sidebaroptionsbutton = true;
 			echo '<div style="line-height:1em;text-align:center;">';
-				echo '<font style="font-size:8pt;"><a href="javascript:void(0);" style="text-decoration:none;" onclick="wq_showhide_div(\'sidebarsettings\');wq_hide_sidebar_saved();">' . esc_html( wqhelper_translate( 'Sidebar Options' ) ) . '</a></font>';
+				echo '<font style="font-size:8pt;"><a href="javascript:void(0);" id="sidebaroptionsbutton" style="text-decoration:none;">' . esc_html( wqhelper_translate( 'Sidebar Options' ) ) . '</a></font>';
 			echo '</div>';
+
+		}
+
+		if ( $savebuttontrigger || $sidebaroptionsbutton ) {
+			// 1.8.1: output script function directly
+			// echo "<script>function wq_sidebar_save_settings() {jQuery('#plugin-settings-save').trigger('click');}</script>";
+			echo "<script>";
+				if ( $savebuttontrigger ) {
+					echo "jQuery('#sidebarsavebutton').on('click', function() {" . PHP_EOL;
+					echo "	jQuery('#plugin-settings-save').trigger('click');" . PHP_EOL;
+					echo "});" . PHP_EOL;
+				}
+				if ( $sidebaroptionsbutton ) {
+					echo "jQuery('#sidebaroptionsbutton').on('click', function() {" . PHP_EOL;
+					echo "wq_showhide_div('sidebarsettings'); wq_hide_sidebar_saved();" . PHP_EOL;
+					echo "});" . PHP_EOL;
+				}
+			echo "</script>";
 		}
 
 		// --- sidebar settings box ---
@@ -2297,7 +2326,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 			echo '<h3>' . esc_html( wqhelper_translate( 'Bonus Offer' ) ) . '</h3>';
 			echo '<div class="inside"><center>';
 				echo '<table cellpadding="0" cellspacing="0"><tr><td align="center">';
-					echo '<img src="' . esc_url( $reportimage ) . '" width="60" height="80" alt="' . wqhelper_translate( 'Report Image' ). '"><br>';
+					echo '<img src="' . esc_url( $reportimage ) . '" width="60" height="80" alt="' . esc_attr( wqhelper_translate( 'Report Image' ) ) . '"><br>';
 					echo '<font style="font-size:6pt;"><a href="' . esc_url( $wqurls['prn'] ) . '/return-visitors-report/" target="_blank">' . esc_html( wqhelper_translate( 'learn more' ) ) . '...</a></font>';
 				echo '</td><td width="7"></td><td align="center">';
 					echo '<b><font style="color:#ee0000;font-size:9pt;">Maximize Sales Conversions:</font><br>';
@@ -2341,8 +2370,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 				if ( 'checked' != $sidebaroptions['adsboxoff'] ) {
 					// 1.8.0: replaced script with RSS feed ad
 					// echo '<script src="' . esc_url( $wqurls['prn'] ) . '/recommends/?s=yes&a=majick&c=' . esc_attr( $pluginslug ) . '&t=sidebar"></script>';
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-					echo $feedad;
+					// 1.8.1: use wp_kses_post on feed ad
+					echo wp_kses_post( $feedad );
 				}
 			}
 			echo '</div></div>';
@@ -2376,8 +2405,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 		   $wpmanchor = wqhelper_translate( 'More WP Medic Tools' );
 		   $pluginurl = $wqurls['wpm'] . '/' . $pluginslug . '/';
 		}
-		$wqlink = '<a href="' . esc_url( $wqurls['wq'] ) . '/plugins/" target="_blank"><b>&rarr; ' . esc_html( $wqanchor ) . '</b></a><br>';
-		$wpmlink = '<a href="' . esc_url( $wqurls['wpm'] ) . '" target="_blank"><b>&rarr; ' . esc_html( $wpmanchor ) . '</b></a><br>';
+		// $wqlink = '<a href="' . esc_url( $wqurls['wq'] ) . '/plugins/" target="_blank"><b>&rarr; ' . esc_html( $wqanchor ) . '</b></a><br>';
+		// $wpmlink = '<a href="' . esc_url( $wqurls['wpm'] ) . '" target="_blank"><b>&rarr; ' . esc_html( $wpmanchor ) . '</b></a><br>';
 
 		// --- set values for theme or plugin ---
 		$footertitle = wqhelper_translate( 'Plugin Info' );
@@ -2401,12 +2430,13 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 				echo '<a href="' . esc_url( $pluginurl ) . '" target="_blank">' . esc_html( $plugintitle ) . '</a> &nbsp; <i>v' . esc_html( $pluginversion ) . '</i><br>';
 				echo esc_html( wqhelper_translate( 'by' ) ) . ' <a href="' . esc_url( $authorurl ) . '" target="_blank">' . esc_html( $authordisplay ) . '</a><br><br></center>';
 
+				// 1.8.1: output links direct instead of storing
 				if ( 'wpmedic' == $author ) {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $wpmlink . $wqlink;
+					echo '<a href="' . esc_url( $wqurls['wpm'] ) . '" target="_blank"><b>&rarr; ' . esc_html( $wpmanchor ) . '</b></a><br>';
+					echo '<a href="' . esc_url( $wqurls['wq'] ) . '/plugins/" target="_blank"><b>&rarr; ' . esc_html( $wqanchor ) . '</b></a><br>';
 				} else {
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-					echo $wqlink . $wpmlink;
+					echo '<a href="' . esc_url( $wqurls['wq'] ) . '/plugins/" target="_blank"><b>&rarr; ' . esc_html( $wqanchor ) . '</b></a><br>';
+					echo '<a href="' . esc_url( $wqurls['wpm'] ) . '" target="_blank"><b>&rarr; ' . esc_html( $wpmanchor ) . '</b></a><br>';
 				}
 				if ( 'bioship' != $pluginslug ) {
 					echo '<a href="' . esc_url( $wqurls['bio'] ) . '" target="_blank"><b>&rarr; ' . esc_html( $bioanchor ) . '</a></b><br>';
@@ -2724,8 +2754,9 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
  $wqfunctions[$funcname] = function() {
 
 	// 1.7.8: fix sidebar option saveing variable pre to prefix
+	// 1.8.1: use sanitize_title on request variable
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$prefix = $_REQUEST['sidebarprefix'];
+	$prefix = sanitize_title( $_REQUEST['sidebarprefix'] );
 	if ( current_user_can( 'manage_options' ) ) {
 
 		// 1.6.5: check nonce field
@@ -2750,7 +2781,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 		);
 		foreach ( $options as $key => $option ) {
 			// phpcs:ignore WordPress.Security.NonceValidation.Recommended
-			if ( isset( $_POST[$prefix . $key] ) && ( 'checked' == $_POST[$prefix . $key] ) ) {
+			if ( isset( $_POST[$prefix . $key] ) && ( 'checked' == sanitize_title( $_POST[$prefix . $key] ) ) ) {
 				$sidebaroptions[$option] = 'checked';
 			}
 		}
@@ -2794,28 +2825,47 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 // ---------------------
 // Sticky Kit Javascript
 // ---------------------
+// 1.8.1: added echo argument to function
 $funcname = 'wqhelper_sidebar_stickykitscript_' . $wqhv;
 if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] ) ) {
- $wqfunctions[$funcname] = function() {
-	$stickykit = '<script>/* Sticky-kit v1.1.2 | WTFPL | Leaf Corcoran 2015 | http://leafo.net */
+ $wqfunctions[$funcname] = function( $echo = false ) {
+
+	// 1.8.1: added for backwards compatibility
+	if ( !$echo ) {
+		ob_start();
+	}
+
+	echo '<script>/* Sticky-kit v1.1.2 | WTFPL | Leaf Corcoran 2015 | http://leafo.net */
 (function(){var b,f;b=this.jQuery||window.jQuery;f=b(window);b.fn.stick_in_parent=function(d){var A,w,J,n,B,K,p,q,k,E,t;null==d&&(d={});t=d.sticky_class;B=d.inner_scrolling;E=d.recalc_every;k=d.parent;q=d.offset_top;p=d.spacer;w=d.bottoming;null==q&&(q=0);null==k&&(k=void 0);null==B&&(B=!0);null==t&&(t="is_stuck");A=b(document);null==w&&(w=!0);J=function(a,d,n,C,F,u,r,G){var v,H,m,D,I,c,g,x,y,z,h,l;if(!a.data("sticky_kit")){a.data("sticky_kit",!0);I=A.height();g=a.parent();null!=k&&(g=g.closest(k));
 if(!g.length)throw"failed to find stick parent";v=m=!1;(h=null!=p?p&&a.closest(p):b("<div />"))&&h.css("position",a.css("position"));x=function(){var c,f,e;if(!G&&(I=A.height(),c=parseInt(g.css("border-top-width"),10),f=parseInt(g.css("padding-top"),10),d=parseInt(g.css("padding-bottom"),10),n=g.offset().top+c+f,C=g.height(),m&&(v=m=!1,null==p&&(a.insertAfter(h),h.detach()),a.css({position:"",top:"",width:"",bottom:""}).removeClass(t),e=!0),F=a.offset().top-(parseInt(a.css("margin-top"),10)||0)-q,
 u=a.outerHeight(!0),r=a.css("float"),h&&h.css({width:a.outerWidth(!0),height:u,display:a.css("display"),"vertical-align":a.css("vertical-align"),"float":r}),e))return l()};x();if(u!==C)return D=void 0,c=q,z=E,l=function(){var b,l,e,k;if(!G&&(e=!1,null!=z&&(--z,0>=z&&(z=E,x(),e=!0)),e||A.height()===I||x(),e=f.scrollTop(),null!=D&&(l=e-D),D=e,m?(w&&(k=e+u+c>C+n,v&&!k&&(v=!1,a.css({position:"fixed",bottom:"",top:c}).trigger("sticky_kit:unbottom"))),e<F&&(m=!1,c=q,null==p&&("left"!==r&&"right"!==r||a.insertAfter(h),
 h.detach()),b={position:"",width:"",top:""},a.css(b).removeClass(t).trigger("sticky_kit:unstick")),B&&(b=f.height(),u+q>b&&!v&&(c-=l,c=Math.max(b-u,c),c=Math.min(q,c),m&&a.css({top:c+"px"})))):e>F&&(m=!0,b={position:"fixed",top:c},b.width="border-box"===a.css("box-sizing")?a.outerWidth()+"px":a.width()+"px",a.css(b).addClass(t),null==p&&(a.after(h),"left"!==r&&"right"!==r||h.append(a)),a.trigger("sticky_kit:stick")),m&&w&&(null==k&&(k=e+u+c>C+n),!v&&k)))return v=!0,"static"===g.css("position")&&g.css({position:"relative"}),
 a.css({position:"absolute",bottom:d,top:"auto"}).trigger("sticky_kit:bottom")},y=function(){x();return l()},H=function(){G=!0;f.off("touchmove",l);f.off("scroll",l);f.off("resize",y);b(document.body).off("sticky_kit:recalc",y);a.off("sticky_kit:detach",H);a.removeData("sticky_kit");a.css({position:"",bottom:"",top:"",width:""});g.position("position","");if(m)return null==p&&("left"!==r&&"right"!==r||a.insertAfter(h),h.remove()),a.removeClass(t)},f.on("touchmove",l),f.on("scroll",l),f.on("resize",
 y),b(document.body).on("sticky_kit:recalc",y),a.on("sticky_kit:detach",H),setTimeout(l,0)}};n=0;for(K=this.length;n<K;n++)d=this[n],J(b(d));return this}}).call(this);</script>';
-	return $stickykit;
+
+	// 1.8.1 added for backwards compatibility
+	if ( !$echo ) {
+		$stickykit = ob_get_contents();
+		ob_end_clean();
+		return $stickykit;
+	}
  };
 } // '
 
 // ---------------------
 // Float Menu Javascript
 // ---------------------
+// 1.8.1: added echo argument to function
 $funcname = 'wqhelper_sidebar_floatmenuscript_' . $wqhv;
 if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] ) ) {
- $wqfunctions[$funcname] = function() {
+ $wqfunctions[$funcname] = function( $echo = false ) {
 
-	$floatbox = "
+	// 1.8.1: added for backwards compatibility
+	if ( !$echo ) {
+		ob_start();
+	}
+
+	echo "
 	<style>.floatbox {position:absolute;width:250px;top:30px;right:15px;z-index:100;}</style>
 
 	<script>
@@ -3043,7 +3093,12 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	}
 	</script>";
 
-	return $floatbox;
+	// 1.8.1: added for backwards compatibility
+	if ( !$echo ) {
+		$floatbox = ob_get_contents();
+		ob_end_clean();
+		return $floatbox;
+	}
  };
 }
 
@@ -3176,7 +3231,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	// maybe Display Latest Release Info
 	// ---------------------------------
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_REQUEST['page'] ) && ( 'wordquest' == $_REQUEST['page'] ) ) {
+	if ( isset( $_REQUEST['page'] ) && ( 'wordquest' == sanitize_title( $_REQUEST['page'] ) ) ) {
 
 		// --- do not duplicate here as already output for wordquest page ---
 		echo '';
@@ -3257,8 +3312,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	echo '<div style="float:right;">&rarr;<a href="' . esc_url( $wqurls['wq'] ) . '/category/guides/" class="feedlink" target="_blank"> ' . esc_html( wqhelper_translate( 'More' ) ) . '...</a></div>';
 	echo '<b><a href="' . esc_url( $wqurls['wq'] ) . '/category/guides/" class="feedlink" target="_blank">' . esc_html( wqhelper_translate( 'Latest WordQuest Guides' ) ) . '</a></b><br>';
 	if ( '' != $feed ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		echo $feed;
+		// 1.8.1: use wp_kses_post on feed output
+		echo wp_kses_post( $feed );
 	} else {
 		echo esc_html( wqhelper_translate( 'Feed Currently Unavailable.' ) );
 		delete_transient( 'wordquest_guides_feed' );
@@ -3291,8 +3346,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	echo '<div style="float:right;">&rarr;<a href="' . esc_url( $wqurls['wq'] ) . '/solutions/" class="feedlink" target="_blank"> ' . esc_html( wqhelper_translate( 'More' ) ) . '...</a></div>';
 	echo '<b><a href="' . esc_url( $wqurls['wq'] ) . '/solutions/" class="feedlink" target="_blank">' . esc_html( wqhelper_translate( 'Latest Solution Quests' ) ) . '</a></b>';
 	if ( '' != $feed ) {
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		echo $feed;
+		// 1.8.1: use wp_kses_post on feed output
+		echo wp_kses_post( $feed );
 	} else {
 		echo esc_html( wqhelper_translate( 'Feed Currently Unavailable.' ) );
 		delete_transient( 'wordquest_quest_feed' );
@@ -3401,8 +3456,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	echo '<div style="float:right;">&rarr;<a href="' . esc_url( $wqurls['prn'] ) . '/directory/latest/" class="feedlink" target="_blank"> ' . esc_html( wqhelper_translate( 'More' ) ) . '...</a></div>';
 	if ( '' != $feed ) {
 		echo '<b>' . esc_html( wqhelper_translate( 'Latest Plugin Releases' ) ) . '</b><br>';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		echo $feed;
+		// 1.8.1: use wp_kses_post on feed output
+		echo wp_kses_post( $feed );
 	} else {
 		echo esc_html( wqhelper_translate( 'Feed Currently Unavailable' ) );
 		delete_transient( 'prn_feed' );
@@ -3435,8 +3490,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	echo '<div style="float:right;">&rarr;<a href="' . esc_url( $wqurls['prn'] ) . '/directory/updated/" class="feedlink" target="_blank"> ' . esc_html( wqhelper_translate( 'More' ) ) . '...</a></div>';
 	if ( '' != $feed ) {
 		echo '<b>' . esc_html( wqhelper_translate( 'Recently Updated Plugins' ) ) . '</b><br>';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-		echo $feed;
+		// 1.8.1: use wp_kses_post on feed output
+		echo wp_kses_post( $feed );
 	} else {
 		echo esc_html( wqhelper_translate( 'Feed Currently Unavailable' ) );
 		delete_transient( 'prn_feed' );
@@ -3514,8 +3569,9 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 
 	global $wqurls;
 	// 1.8.0: remove siteurl usage and validate site key instead
+	// 1.8.1: use sanitize_title on request value
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$site = $_GET['site'];
+	$site = sanitize_title( $_GET['site'] );
 	if ( !array_key_exists( $site, $wqurls ) ) {
 		return;
 	}
@@ -3585,7 +3641,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 }
 
 // -----------
-// Get Feed Ad 
+// Get Feed Ad
 // -----------
 // 1.8.0: get ad via feed
 $funcname = 'wqhelper_get_feed_ad_' . $wqhv;
@@ -3594,9 +3650,9 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 
 	global $wqurls;
 	$feedurl = $wqurls['prn'] . '/recommends/?s=1&f=1&c=' . esc_attr( $pluginslug ) . '&t=sidebar';
-	add_filter( 'wp_feed_cache_transient_lifetime' , 'wqhelper_ad_feed_interval' );
+	add_filter( 'wp_feed_cache_transient_lifetime', 'wqhelper_ad_feed_interval' );
 	$rss = fetch_feed( $feedurl );
-	remove_filter( 'wp_feed_cache_transient_lifetime' , 'wqhelper_ad_feed_interval' );
+	remove_filter( 'wp_feed_cache_transient_lifetime', 'wqhelper_ad_feed_interval' );
 	if ( !$rss || is_wp_error( $rss ) ) {
 		return '';
 	}
