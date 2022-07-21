@@ -757,7 +757,7 @@ function forcefield_blocklist_unblock_form_output() {
 		// 1.0.4: added missing esc_url and esc_url_raw wrappers
 		$adminajax = admin_url( 'admin-ajax.php' );
 		$protocol = is_ssl() ? 'https://' : 'http://';
-		$redirect = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		$redirect = $protocol . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'];
 		echo '<form action="' . esc_url( $adminajax ) . '" method="post">' . PHP_EOL;
 		echo '<input type="hidden" name="action" value="forcefield_unblock">' . PHP_EOL;
 		echo '<input type="hidden" name="redirect" value="' . esc_url_raw( $redirect ) . '">' . PHP_EOL;

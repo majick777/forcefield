@@ -69,7 +69,7 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 
 = 1.0.5 =
 * Updated: Plugin Panel (1.2.5)
-* Updated: WordQuest Helper (1.8.1)
+* Updated: WordQuest Helper (1.8.2)
 * Fixed: Missing sanitization and escaping
 
 = 1.0.4 =

@@ -4,7 +4,7 @@
 // === WORDQUEST PLUGIN HELPER ===
 // ===============================
 
-$wordquestversion = '1.8.1';
+$wordquestversion = '1.8.2';
 
 // === Notes ===
 // - Changelog at end of this file
@@ -1783,7 +1783,8 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 
 	if ( !isset( $pluginpackage ) ) {
 		$protocol = is_ssl() ? 'https://' : 'http://';
-		$tryagainurl = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] . '?' . $_SERVER['QUERY_STRING'];
+		// 1.8.2: add sanitize_text_field to $_SERVER['HTTP_HOST']
+		$tryagainurl = $protocol . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['PHP_SELF'] . '?' . $_SERVER['QUERY_STRING'];
 		$message = esc_html( wqhelper_translate( 'Failed to retrieve download package information.' ) );
 		$message .= ' <a href="' . esc_url( $tryagainurl ) . '">';
 		$message .= esc_html( wqhelper_translate( 'Click here to try again.' ) ) . '</a>';
@@ -2373,8 +2374,9 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 					// 1.8.1: use wp_kses_post on feed ad
 					echo wp_kses_post( $feedad );
 				}
+				// 1.8.2: fix to move close divs back inside condition
+				echo '</div></div>';
 			}
-			echo '</div></div>';
 		}
 
 		echo '</div>';
@@ -3344,7 +3346,7 @@ if ( !isset( $wqfunctions[$funcname] ) || !is_callable( $wqfunctions[$funcname] 
 	// --- output solutions feed ---
 	echo '<div id="wordquestsolutions">';
 	echo '<div style="float:right;">&rarr;<a href="' . esc_url( $wqurls['wq'] ) . '/solutions/" class="feedlink" target="_blank"> ' . esc_html( wqhelper_translate( 'More' ) ) . '...</a></div>';
-	echo '<b><a href="' . esc_url( $wqurls['wq'] ) . '/solutions/" class="feedlink" target="_blank">' . esc_html( wqhelper_translate( 'Latest Solution Quests' ) ) . '</a></b>';
+	echo '<b><a href="' . esc_url( $wqurls['wq'] ) . '/solutions/" class="feedlink" target="_blank">' . esc_html( wqhelper_translate( 'Latest Solution Quests' ) ) . '</a></b><br>';
 	if ( '' != $feed ) {
 		// 1.8.1: use wp_kses_post on feed output
 		echo wp_kses_post( $feed );
@@ -3683,6 +3685,13 @@ if ( !function_exists( 'wqhelper_ad_feed_interval' ) ) {
 // -----------------
 // === Changelog ===
 // -----------------
+
+// = 1.8.2 =
+// - fix to floatbox divs condition when no recommendation
+// - sanitize HTTP_HOST server global key
+
+// = 1.8.1 =
+// - improved output escaping and sanitization
 
 // = 1.8.0 =
 // - Fix WordPress Coding Standards sniffs

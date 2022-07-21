@@ -4,8 +4,8 @@
 Plugin Name: ForceField
 Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
-Description: Strong and Flexible Access, User Action, API and Role Protection
-Version: 1.0.4
+Description: Flexible Brute Force, User Action, API and Role Protection
+Version: 1.0.5
 Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
@@ -990,8 +990,9 @@ function forcefield_get_remote_ip( $debug = false ) {
 	$local = false;
 	foreach ( $ipkeys as $ipkey ) {
 		if ( isset( $_SERVER[$ipkey] ) && !empty( $_SERVER[$ipkey] ) ) {
+			// 1.0.5: use sanitize_text_field on $_SERVER IP value
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing
-			$ip = $_SERVER[$ipkey];
+			$ip = sanitize_text_field( $_SERVER[$ipkey] );
 
 			// --- filter out server IP match ---
 			// 0.9.3: check remote IP against server IP
@@ -1055,9 +1056,8 @@ function forcefield_get_server_ip( $debug = false ) {
 	if ( function_exists( 'gethostbyname' ) ) {
 
 		// --- use DNS lookup of the server host name ---
-		// 1.8.1: change HTTP_HOST to SERVER_NAME
-		// ref: https://stackoverflow.com/a/11017252/5240159
-		$hostname = $_SERVER['SERVER_NAME'];
+		// 1.0.5: use sanitize_text_field on http host value
+		$hostname = sanitize_text_field( $_SERVER['HTTP_HOST'] );
 		if ( $debug ) {
 			echo "<!-- Host Name: " . esc_html( $hostname ) . " -->";
 		}

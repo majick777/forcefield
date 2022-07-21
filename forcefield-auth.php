@@ -977,7 +977,7 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1143,7 +1143,7 @@ function forcefield_signup_authenticate( $results ) {
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1312,7 +1312,7 @@ function forcefield_lost_password_authenticate( $allow ) {
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1475,7 +1475,7 @@ function forcefield_preprocess_comment( $comment ) {
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
@@ -1651,7 +1651,7 @@ function forcefield_buddypress_authenticate() {
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		} else {
-			wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+			wp_safe_redirect( 'https://' . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'] );
 		}
 		exit;
 	}
