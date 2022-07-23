@@ -552,8 +552,9 @@ function forcefield_blocklist_expire_old_rows( $timestamp, $reason = false, $ip 
 		$query .= $wpdb->prepare( " AND `ip` = %s", $ip );
 	}
 
+	// 1.0.5: use sanitize_title on request variable
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
+	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == sanitize_title( $_REQUEST['ff-cleanup'] ) ) ) {
 		echo esc_html( $query ) . '<br>' . PHP_EOL;
 	}
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -586,8 +587,9 @@ function forcefield_blocklist_delete_old_rows( $timestamp, $reason = false, $ip 
 		$query .= $wpdb->prepare( " AND `ip` = %s", $ip );
 	}
 
+	// 1.0.5: use sanitize_title on request variable
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
+	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == sanitize_title( $_REQUEST['ff-cleanup'] ) ) ) {
 		echo esc_html( $query ) . '<br>' . PHP_EOL;
 	}
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
@@ -630,7 +632,8 @@ function forcefield_blocklist_remove_record() {
 	check_admin_referer( 'forcefield-delete' );
 
 	// --- get IP to unblock ---
-	$ip = $_REQUEST['ip'];
+	// 1.0.5: use sanitize_text_field on request variable
+	$ip = sanitize_text_field( $_REQUEST['ip'] );
 	$iptype = forcefield_get_ip_type( $ip );
 	if ( !$iptype ) {
 		return false;
@@ -638,7 +641,8 @@ function forcefield_blocklist_remove_record() {
 	$message = __( 'IP Address Block Removed.', 'forcefield' );
 
 	if ( isset( $_REQUEST['label'] ) ) {
-		$reason = $_REQUEST['label'];
+		// 1.0.5: use sanitize_text_field on request variable
+		$reason = sanitize_text_field( $_REQUEST['label'] );
 		$reasons = forcefield_blocklist_get_reasons();
 		if ( !array_key_exists( $reason, $reasons ) ) {
 			return false;
@@ -653,25 +657,26 @@ function forcefield_blocklist_remove_record() {
 
 	// --- remove row(s) from IP blocklist display table ---
 	// 1.0.0: added row removal javascript
+	// 1.0.5: output directly instead of storing javascript
+	echo "<script>";
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	if ( isset( $_REQUEST['row'] ) ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$row = absint( $_REQUEST['row'] );
-		$js = "parent.document.getElementById('blocklist-row-" . esc_js( $row ) . "').style.display = 'none'; ";
+		echo "parent.document.getElementById('blocklist-row-" . esc_js( $row ) . "').style.display = 'none'; ";
 	} else {
 		$ipclass = str_replace( '.', '-', $ip );
-		$js = "els = parent.document.getElementsByClassName('ip-" . esc_js( $ipclass ) . "'); ";
-		$js .= "for (i = 0; i < els.length; i++) {els[i].style.display = 'none';} ";
+		echo "els = parent.document.getElementsByClassName('ip-" . esc_js( $ipclass ) . "'); ";
+		echo "for (i = 0; i < els.length; i++) {els[i].style.display = 'none';} ";
 	}
 
 	// --- refresh unblock action nonce ---
 	// 1.0.0: added nonce refresh
 	$unblocknonce = wp_create_nonce( 'forcefield-delete' );
-	$js .= "parent.document.getElementById('unblock-nonce').value = '" . esc_js( $unblocknonce ) . "'; ";
+	echo "parent.document.getElementById('unblock-nonce').value = '" . esc_js( $unblocknonce ) . "'; ";
 
-	// --- output javascript ---
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.OutputNotEscaped
-	echo "<script>" . $js . "</script>";
+	// --- close javascript ---
+	echo "</script>";
 
 	// --- alert and exit ---
 	forcefield_alert_message( $message );
@@ -692,9 +697,10 @@ function forcefield_blocklist_clear() {
 	// --- check admin referer ---
 	// 0.9.6: fix to referrer typo
 	// 1.0.2: alert with nonce expired message
+	// 1.0.5: use sanitize_text_field on request variable
 	// check_admin_referer( 'forcefield-clear' );
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$nonce = $_REQUEST['nonce'];
+	$nonce = sanitize_text_field( $_REQUEST['nonce'] );
 	$checknonce = wp_verify_nonce( $nonce, 'forcefield-clear' );
 	if ( !$checknonce ) {
 		$message = __( 'Nonce expired. Please reload the page and try again.', 'forcefield' );
@@ -751,7 +757,7 @@ function forcefield_blocklist_unblock_form_output() {
 		// 1.0.4: added missing esc_url and esc_url_raw wrappers
 		$adminajax = admin_url( 'admin-ajax.php' );
 		$protocol = is_ssl() ? 'https://' : 'http://';
-		$redirect = $protocol . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		$redirect = $protocol . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'];
 		echo '<form action="' . esc_url( $adminajax ) . '" method="post">' . PHP_EOL;
 		echo '<input type="hidden" name="action" value="forcefield_unblock">' . PHP_EOL;
 		echo '<input type="hidden" name="redirect" value="' . esc_url_raw( $redirect ) . '">' . PHP_EOL;
@@ -796,7 +802,7 @@ function forcefield_blocklist_unblock_check() {
 		// --- get sanitized post value ---
 		// 0.9.9: strip non alphanumeric characters
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$authtoken = $_POST['auth_token_unblock'];
+		$authtoken = sanitize_text_field( $_POST['auth_token_unblock'] );
 		// 1.0.3: fix to mismatched variable name (posted)
 		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
 
@@ -834,17 +840,20 @@ function forcefield_blocklist_unblock_check() {
 			// --- maybe automatically redirect to last URL ---
 			// 1.0.0: added automatic redirect
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_REQUEST['redirect'] ) && ( '' != $_REQUEST['redirect'] ) ) {
+			if ( isset( $_REQUEST['redirect'] ) ) {
 
 				// --- output redirection message ---
 				// 1.0.1: fix to incorrect text domain
 				// 1.0.4: added missing esc_html wrappers
-				$redirect = $_REQUEST['redirect'];
-				echo '<p>' . esc_html( __( 'You will be automatically redirected to your last requested address.', 'forcefield' ) ) . '</p>';
-				echo '<p><a href="' . esc_url( $redirect ) . '">' . esc_html( __( 'Click here to continue to this address manually.', 'forcefield' ) ) . '</a></p>';
+				// 1.0.5: use sanitize_url on request variable
+				$redirect = trim( esc_url_raw( $_REQUEST['redirect'] ) );
+				if ( '' != $redirect ) {
+					echo '<p>' . esc_html( __( 'You will be automatically redirected to your last requested address.', 'forcefield' ) ) . '</p>';
+					echo '<p><a href="' . esc_url( $redirect ) . '">' . esc_html( __( 'Click here to continue to this address manually.', 'forcefield' ) ) . '</a></p>';
 
-				// --- script for automatic redirection ---
-				echo "<script>setTimeout(function() {document.location = '" . esc_url( $redirect ) . "';}, 5000);</script>";
+					// --- script for automatic redirection ---
+					echo "<script>setTimeout(function() {document.location = '" . esc_url( $redirect ) . "';}, 5000);</script>";
+				}
 			}
 
 			exit;
@@ -879,7 +888,7 @@ function forcefield_blocklist_table_cleanup( $reason = false, $ip = false ) {
 		$expireperiod = apply_filters( 'blocklist_expiry_' . $reason, $expireperiod );
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
+	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == sanitize_title( $_REQUEST['ff-cleanup'] ) ) ) {
 		// 1.0.4: added missing esc_html wrapper
 		echo 'Expire Period: ' . esc_html( $expireperiod ) . '<br>' . PHP_EOL;
 	}
@@ -898,7 +907,7 @@ function forcefield_blocklist_table_cleanup( $reason = false, $ip = false ) {
 	}
 	// $expireperiod = absint( $expireperiod );
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
+	if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == sanitize_title( $_REQUEST['ff-cleanup'] ) ) ) {
 		// 1.0.4: added missing esc_html wrapper
 		echo 'Delete Period: ' . esc_html( $deleteperiod ) . '<br>' . PHP_EOL;
 	}
@@ -923,7 +932,7 @@ function forcefield_blocklist_schedule_cleanup() {
 	}
 	if ( current_user_can( 'manage_options' ) ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == $_REQUEST['ff-cleanup'] ) ) {
+		if ( isset( $_REQUEST['ff-cleanup'] ) && ( '1' == sanitize_title( $_REQUEST['ff-cleanup'] ) ) ) {
 			forcefield_blocklist_table_cleanup();
 			exit;
 		}
