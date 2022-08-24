@@ -1,11 +1,11 @@
 <?php
 
-// ===========================
-// === Plugin Loader Class ===
-// ===========================
+// =================================
+// === Plugin Panel Loader Class ===
+// =================================
 //
 // --------------
-// Version: 1.2.5
+// Version: 1.2.6
 // --------------
 // Note: Changelog and structure at end of file.
 //
@@ -2336,6 +2336,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$allowed = wp_kses_allowed_html( 'post' );
 
 			// --- input ---
+			// 1.2.6: add missing checked attribute
 			$allowed['input'] = array(
 				'id'			=> array(),
 				'class'			=> array(),
@@ -2344,6 +2345,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 				'type'			=> array(),
 				'data'			=> array(),
 				'placeholder'	=> array(),
+				'checked'       => array(),
 				'data-alpha-enabled' => array(),
 				'data-default-color' => array(),
 			);
@@ -2359,18 +2361,21 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			);
 
 			// --- select ---
+			// 1.2.6: fix multiselect to multiple
 			$allowed['select'] = array(
 				'id'			=> array(),
 				'class'			=> array(),
 				'name'			=> array(),
 				'value'			=> array(),
 				'type'			=> array(),
-				'multiselect'	=> array(),
+				'multiple'		=> array(),
 			);
 
 			// --- select option ---
+			// 1.2.6: added missing value attribute
 			$allowed['option'] = array(
 				'selected' => array(),
+				'value'    => array(),
 			);
 
 			// --- option group ---
@@ -3433,6 +3438,9 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // =========
 // CHANGELOG
 // =========
+
+// == 1.2.6 ==
+// - expanded wp_kses allowed input attributes
 
 // == 1.2.5 ==
 // - improved posted value input sanitization
