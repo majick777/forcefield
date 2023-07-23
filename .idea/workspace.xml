@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="d1d69404-8ef8-4f27-a963-62534c8247d8" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ComposerSettings" synchronizationState="SYNCHRONIZE">
+    <execution>
+      <executable />
+    </execution>
+  </component>
+  <component name="MessDetectorProjectConfiguration">
+    <option name="selectedConfigurationId" value="DEFAULT_INTERPRETER" />
+  </component>
+  <component name="PHPCSFixerProjectConfiguration">
+    <option name="selectedConfigurationId" value="DEFAULT_INTERPRETER" />
+  </component>
+  <component name="PHPCodeSnifferProjectConfiguration">
+    <option name="selectedConfigurationId" value="DEFAULT_INTERPRETER" />
+  </component>
+  <component name="PhpWorkspaceProjectConfiguration">
+    <include_path>
+      <path value="C:/!WP/InstantWP_4.5/iwpserver/htdocs/wordpress" />
+    </include_path>
+  </component>
+  <component name="ProjectId" id="2AyL6JOqfwRYRTW2dvO78iRHYEK" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+    <option name="showMembers" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
+    <property name="settings.editor.selected.configurable" value="settings.php.quality.tools" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="d1d69404-8ef8-4f27-a963-62534c8247d8" name="Default Changelist" comment="" />
+      <created>1655976704518</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1655976704518</updated>
+      <workItem from="1655976722526" duration="7406000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="458" y="0" key="#PHP" timestamp="1655976807684">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="458" y="0" key="#PHP/218.0.1062.720@218.0.1062.720" timestamp="1655976807684" />
+    <state x="589" y="286" key="#WordPress" timestamp="1655976778417">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="589" y="286" key="#WordPress/218.0.1062.720@218.0.1062.720" timestamp="1655976778417" />
+    <state x="218" y="15" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1655984708524">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="218" y="15" key="#com.intellij.execution.impl.EditConfigurationsDialog/218.0.1062.720@218.0.1062.720" timestamp="1655984708524" />
+    <state x="508" y="231" key="ANALYSIS_DLG_com.intellij.analysis.BaseAnalysisAction$1" timestamp="1655977671467">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="508" y="231" key="ANALYSIS_DLG_com.intellij.analysis.BaseAnalysisAction$1/218.0.1062.720@218.0.1062.720" timestamp="1655977671467" />
+    <state x="251" y="0" key="SettingsEditor" timestamp="1655977558714">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="251" y="0" key="SettingsEditor/218.0.1062.720@218.0.1062.720" timestamp="1655977558714" />
+    <state x="446" y="184" key="com.intellij.ide.util.TipDialog" timestamp="1655976722497">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="446" y="184" key="com.intellij.ide.util.TipDialog/218.0.1062.720@218.0.1062.720" timestamp="1655976722497" />
+    <state x="443" y="92" width="612" height="536" key="find.popup" timestamp="1655978010387">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="443" y="92" width="612" height="536" key="find.popup/218.0.1062.720@218.0.1062.720" timestamp="1655978010387" />
+    <state x="412" y="41" width="672" height="678" key="search.everywhere.popup" timestamp="1655978088713">
+      <screen x="218" y="0" width="1062" height="720" />
+    </state>
+    <state x="412" y="41" width="672" height="678" key="search.everywhere.popup/218.0.1062.720@218.0.1062.720" timestamp="1655978088713" />
+  </component>
+  <component name="WordPressConfiguration" enabled="true">
+    <wordpressPath>C:\!WP\InstantWP_4.5\iwpserver\htdocs\wordpress</wordpressPath>
+  </component>
+</project>

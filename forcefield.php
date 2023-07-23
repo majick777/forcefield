@@ -5,7 +5,7 @@ Plugin Name: ForceField
 Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Flexible Brute Force, User Action, API and Role Protection
-Version: 1.0.6
+Version: 1.0.7
 Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
@@ -89,6 +89,13 @@ if ( !defined( 'ABSPATH' ) ) {
 add_filter( 'forcefield_admin_menu_added', 'forcefield_add_admin_menu', 10, 2 );
 function forcefield_add_admin_menu( $added, $args ) {
 
+	// --- bug out if no wordquest helper ---
+	// 1.0.7: added this check
+	$wqhelper = dirname( __FILE__ ) . '/wordquest.php';
+	if ( !file_exists( $wqhelper ) ) {
+		return false;
+	}
+
 	// --- filter menu capability early ---
 	$capability = apply_filters( 'wordquest_menu_capability', 'manage_options' );
 
@@ -144,7 +151,7 @@ function forcefield_add_settings( $args ) {
 			'donationboxoff'	=> '',
 			'subscribeboxoff'	=> '',
 			'reportboxoff' 		=> '',
-			'adsboxoff'		=> $adsboxoff,
+			'adsboxoff'         => $adsboxoff,
 		);
 		add_option( $args['settings'] . '_sidebar_options', $sidebaroptions );
 	}
