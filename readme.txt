@@ -7,8 +7,8 @@ Plugin URI: https://wordquest.org/plugins/forcefield/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.0.0
-Tested up to: 6.0.0
-Stable tag: 1.0.6
+Tested up to: 6.2.2
+Stable tag: 1.0.7
 
 Strong and Flexible Access, User Action, API, Behavioural and Role Protection
 
@@ -66,6 +66,10 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 
 
 == Changelog ==
+
+= 1.0.7 =
+* Updated: Freemius SDK (2.5.10)
+* Updated: Plugin Panel (1.2.9)
 
 = 1.0.6 =
 * Updated: Plugin Panel (1.2.6)

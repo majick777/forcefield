@@ -5,7 +5,7 @@
 // =================================
 //
 // --------------
-// Version: 1.2.6
+// Version: 1.2.9
 // --------------
 // Note: Changelog and structure at end of file.
 //
@@ -582,9 +582,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 					if ( $this->debug ) {
 						// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-						echo 'Saving Setting Key ' . esc_html( $key ) . ' (' . esc_html( $postkey ) . ')<br>' . PHP_EOL;
+						echo 'Saving Setting Key ' . esc_html( $key ) . ' (' . esc_html( $postkey ) . ')<br>' . "\n";
 						// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-						echo 'Type: ' . esc_html( $type ) . ' - Valid Options ' . esc_html( $key ) . ': ' . esc_html( print_r( $valid, true ) ) . '<br>' . PHP_EOL;
+						echo 'Type: ' . esc_html( $type ) . ' - Valid Options ' . esc_html( $key ) . ': ' . esc_html( print_r( $valid, true ) ) . '<br>' . "\n";
 					}
 
 					// --- sanitize value according to type ---
@@ -676,7 +676,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						if ( strstr( $posted, ',' ) ) {
 							$posted = explode( ',', $posted );
 						} else {
-							$posted[0] = $posted;
+							// 1.2.8: fix to convert string to array
+							$posted = array( $posted );
 						}
 						foreach ( $posted as $i => $value ) {
 							$posted[$i] = trim( $value );
@@ -742,21 +743,42 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						if ( !is_null( $posted ) ) {
 							$posted = str_replace( ' ', '', $posted );
 							$values = array();
-							sscanf( $color, 'rgba(%d,%d,%d,%f)', $values['red'], $values['green'], $values['blue'], $alpha );
-							foreach ( $values as $key => $value ) {
-								$value = absint( $value );
-								if ( $value < 0 ) {
-									$values[$key] = 0;
-								} elseif ( $value > 255 ) {
-									$values[$key] = 255;
+							// 1.2.7: fix color variable to posted
+							// 1.2.7: make alpha a value key not separate
+							// 1.2.7: check number of commas to see if alpha is set
+							$commas = substr_count( $posted, ',' );
+							if ( 3 == $commas ) {
+								sscanf( $posted, 'rgba(%d,%d,%d,%f)', $values['red'], $values['green'], $values['blue'], $values['alpha'] );
+							} elseif ( 2 == $commas ) {
+								// 1.2.8: remove a from rgba (failing for non-alpha selections)
+								sscanf( $posted, 'rgb(%d,%d,%d)', $values['red'], $values['green'], $values['blue'] );
+							}
+							// echo 'rgba sscanf values: ' . print_r( $values, true ) . "\n";
+							// 1.2.7: fix for use of duplicate key variable
+							foreach ( $values as $k => $v ) {
+								if ( 'alpha' != $k ) {
+									// --- sanitize rgb values ---
+									$v = absint( $v );
+									if ( $v < 0 ) {
+										$values[$k] = 0;
+									} elseif ( $v > 255 ) {
+										$values[$k] = 255;
+									}
+								} else {
+									// --- sanitize alpha value ---
+									if ( $v < 0 ) {
+										$values['alpha'] = 0;
+									} elseif ( $v > 1 ) {
+										$values['alpha'] = 1;
+									}
 								}
 							}
-							if ( $alpha < 0 ) {
-								$alpha = 0;
-							} elseif ( $alpha > 1 ) {
-								$alpha = 1;
+							if ( 3 == $commas ) {
+								$posted = 'rgba(' . $values['red'] . ',' . $values['green'] . ',' . $values['blue'] . ',' . $values['alpha'] . ')';
+							} elseif ( 2 == $commas ) {
+								// 1.2.8: remove a from rgba (for non-alpha selections)
+								$posted = 'rgb(' . $values['red'] . ',' . $values['green'] . ',' . $values['blue'] . ')';
 							}
-							$posted = 'rgba(' . $values['red'] . ',' . $values['green'] . ',' . $values['blue'] . ',' . $alpha . ')';
 						}
 						$settings[$key] = $posted;
 
@@ -767,14 +789,14 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						// 1.2.0: added isset check for newsetting
 						if ( !is_null( $newsettings ) ) {
 							// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-							echo '(To-validate) ' . esc_html( print_r( $newsettings, true ) ) . '<br>' . PHP_EOL;
+							echo '(To-validate) ' . esc_html( print_r( $newsettings, true ) ) . '<br>' . "\n";
 						} else {
 							// 1.1.7 handle if (new) key not set yet
 							if ( isset( $settings[$key] ) ) {
 								// phpcs:ignore WordPress.PHP.DevelopmentFunctions
 								echo '(Validated) ' . esc_html( print_r( $settings[$key], true ) ) . '<br>' . PHP_EOL;
 							} else {
-								echo 'No setting yet for key ' . esc_html( $key ) . '<br>' . PHP_EOL;
+								echo 'No setting yet for key ' . esc_html( $key ) . '<br>' . "\n";
 							}
 						}
 					}
@@ -818,7 +840,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 									$newvalue = $this->validate_setting( $value, $valid, $validate_args );
 									$newvalues[] = $newvalue;
 									if ( $this->debug ) {
-										echo 'Validated Setting value ' . esc_html( $value ) . ' to ' . esc_html( $newvalue ) . '<br>' . PHP_EOL;
+										echo 'Validated Setting value ' . esc_html( $value ) . ' to ' . esc_html( $newvalue ) . '<br>' . "\n";
 									}
 								}
 								$newsettings = implode( ',', $newvalues );
@@ -828,7 +850,7 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 								// 1.1.9: fix to allow saving of zero value
 								// 1.2.1: fix to allow saving of empty value
 								if ( $this->debug ) {
-									echo 'Validated Setting single value ' . esc_html( $newsettings ) . ' to ' . esc_html( $newsetting ) . '<br>' . PHP_EOL;
+									echo 'Validated Setting single value ' . esc_html( $newsettings ) . ' to ' . esc_html( $newsetting ) . '<br>' . "\n";
 								}
 								if ( $newsetting || ( '' == $newsetting ) || ( 0 == $newsetting ) || ( '0' == $newsetting ) ) {
 									$settings[$key] = $newsetting;
@@ -838,9 +860,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 						if ( $this->debug ) {
 							// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-							echo 'Valid Options for Key ' . esc_html( $key ) . ': ' . esc_html( print_r( $valid, true ) ) . '<br>' . PHP_EOL;
+							echo 'Valid Options for Key ' . esc_html( $key ) . ': ' . esc_html( print_r( $valid, true ) ) . '<br>' . "\n";
 							// phpcs:ignore WordPress.PHP.DevelopmentFunctions
-							echo 'Validated Settings for Key ' . esc_html( $key ) . ': ' . esc_html( print_r( $settings[$key], true ) ) . '<br>' . PHP_EOL;
+							echo 'Validated Settings for Key ' . esc_html( $key ) . ': ' . esc_html( print_r( $settings[$key], true ) ) . '<br>' . "\n";
 						}
 					}
 
@@ -2545,7 +2567,6 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						// --- maybe prepare post/page options (once) ---
 						if ( in_array( $option['options'], array( 'POSTID', 'POSTIDS', 'PAGEID', 'PAGEIDS' ) ) ) {
 
-							$pageoptions = $postoptions = array( '' => '' );
 							$posttype = strtolower( substr( $option['options'], 0, 4 ) );
 							if ( ( ( 'page' == $posttype ) && !isset( $pageoptions ) )
 								|| ( ( 'post' == $posttype ) && !isset( $postoptions ) ) ) {
@@ -2556,6 +2577,9 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 								$query = $wpdb->prepare( $query, $posttype );
 								// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 								$results = $wpdb->get_results( $query, ARRAY_A );
+
+								// 1.2.7: fix by moving page/post options variable here
+								$pageoptions = $postoptions = array( '' => '' );
 								if ( $results && ( count( $results ) > 0 ) ) {
 									foreach ( $results as $result ) {
 										if ( strlen( $result['post_title'] ) > 35 ) {
@@ -2949,8 +2973,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 						echo "	if (!agree) {return false;}" . PHP_EOL;
 						echo "	document.getElementById('settings-action').value = 'reset';" . PHP_EOL;
 						echo "	document.getElementById('settings-form').submit();" . PHP_EOL;
-						echo "});" . PHP_EOL;
-						// echo "}" . PHP_EOL;
+						echo "});" . "\n";
+						// echo "}" . "\n";
 
 					} elseif ( 'number_step' == $script ) {
 
@@ -2963,20 +2987,22 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 							if ((min !== false) && (newvalue < parseInt(min))) {newvalue = min;}
 							if ((max !== false) && (newvalue > parseInt(max))) {newvalue = max;}
 							document.getElementById(id).value = newvalue;
-						}" . PHP_EOL; */
+						}" . "\n"; */
 						// 1.2.5: replace with jQuery click function to remove onclick attributes
+						// 1.2.9: fix for possible empty value converting to NaN
 						echo "jQuery('.number-button').on('click', function() {
 							if (jQuery(this).hasClass('number-up-button')) {multiplier = 1;}
 							else if (jQuery(this).hasClass('number-down-button')) {multiplier = -1;}
 							idref = 'number-input-'+jQuery(this).attr('data');
 							data = jQuery('#'+idref).attr('data').split(',');
 							min = data[0]; max = data[1]; step = data[2];
-							value = parseInt(jQuery('#'+idref).val());
+							value = jQuery('#'+idref).val();
+							if (value == '') {value = 0;} else {value = parseInt(value);}				
 							newvalue = value + (multiplier * parseInt(step));
 							if ((min !== false) && (newvalue < parseInt(min))) {newvalue = min;}
 							if ((max !== false) && (newvalue > parseInt(max))) {newvalue = max;}
 							jQuery('#'+idref).val(newvalue);
-						});" . PHP_EOL;
+						});" . "\n";
 
 					} elseif ( 'media_functions' == $script ) {
 
@@ -3027,14 +3053,14 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 								parentdiv.find('.delete-custom-image').addClass('hidden');
 							});
 
-						});" . PHP_EOL;
+						});" . "\n";
 
 					} elseif ( 'colorpicker_init' == $script ) {
 
 						// --- initialize color pickers ---
-						echo "jQuery(document).ready(function(){" . PHP_EOL;
-						echo "	if (jQuery('.color-picker').length) {jQuery('.color-picker').wpColorPicker();}" . PHP_EOL;
-						echo "});" . PHP_EOL;
+						echo "jQuery(document).ready(function(){" . "\n";
+						echo "	if (jQuery('.color-picker').length) {jQuery('.color-picker').wpColorPicker();}" . "\n";
+						echo "});" . "\n";
 
 					}
 					// else {
@@ -3058,7 +3084,8 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			$styles = array();
 
 			// --- page styles ---
-			$styles[] = '#wrapbox {margin-right: 20px;}';
+			// 1.2.9: add padding to bottom of settings form
+			$styles[] = '#wrapbox {margin-right: 20px; padding-bottom: 20px;}';
 
 			// --- plugin header styles ---
 			// 1.2.0: moved from plugin header section
@@ -3069,9 +3096,10 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- settings tab styles ---
 			// 1.1.0: added max-width:100% to select input
+			// 1.2.7: add pointer cursor to inactive tabs
 			$styles[] = '.settings-tab-button {display:inline-block; font-size:15px; padding:7px 14px; margin-right:20px; border-radius:7px;}';
 			$styles[] = '.settings-tab-button.active {font-weight:bold; background-color:#0073aa; color:#FFF; border:1px solid #FFF;}';
-			$styles[] = '.settings-tab-button.inactive {font-weight:bold; background-color:#F5F5F5; color:#0073aa; border:1px solid #000;}';
+			$styles[] = '.settings-tab-button.inactive {font-weight:bold; background-color:#F5F5F5; color:#0073aa; border:1px solid #000; cursor:pointer;}';
 			$styles[] = '.settings-tab-button.inactive:hover {background-color:#FFFFFF; color:#00a0d2;}';
 			$styles[] = '.settings-tab.active {display:block;}';
 			$styles[] = '.settings-tab.inactive {display:none;}';
@@ -3084,19 +3112,18 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 
 			// --- setting input styles ---
 			$styles[] = '.settings-input {vertical-align:top; min-width:100px; max-width:300px;}';
-			$styles[] = '.settings-input input.setting-radio {}';
-			$styles[] = '.settings-input input.setting-checkbox {}';
+			// $styles[] = '.settings-input input.setting-radio {}';
+			// $styles[] = '.settings-input input.setting-checkbox {}';
 			$styles[] = '.settings-input input.setting-text {width:100%;}';
 			$styles[] = '.settings-input input.setting-numeric {display:inline-block; width:50%; text-align:center; vertical-align:middle;}';
 			$styles[] = '.settings-input input.setting-button {display:inline-block; padding:0px 5px;}';
-			$styles[] = '.settings-input input.setting-button.number-down-button {padding:9px 7px;}';
+			$styles[] = '.settings-input input.setting-button.number-down-button {padding:0px 7px; font-weight:bold;}';
 			$styles[] = '.settings-input input.setting-textarea {width:100%;}';
 			$styles[] = '.settings-input select.setting-select {min-width:100px; max-width:100%;}';
-
+			
 			// --- toggle input styles ---
 			// Ref: https://www.w3schools.com/howto/howto_css_switch.asp
-			$styles[] = '
-			.setting-toggle {position:relative; display:inline-block; width:30px; height:17px;}
+			$styles[] = '.setting-toggle {position:relative; display:inline-block; width:30px; height:17px;}
 			.setting-toggle input {opacity:0; width:0; height:0;}
 			.setting-slider {position:absolute; cursor:pointer;
 			  top:0; left:0; right:0; bottom:0; background-color:#ccc;
@@ -3105,14 +3132,19 @@ if ( !class_exists( 'forcefield_loader' ) ) {
 			.setting-slider:before {position:absolute; content:""; height:13px; width:13px;
 			  left:2px; bottom:2px; background-color:white; -webkit-transition:.4s; transition:.4s;
 			}
-			input:checked + .setting-slider {background-color: #2196F3;}
-			input:focus + .setting-slider {box-shadow: 0 0 1px #2196F3;}
+			input:checked + .setting-slider {background-color:#2196F3;}
+			input:focus + .setting-slider {box-shadow:0 0 1px #2196F3;}
 			input:checked + .setting-slider:before {
 			  -webkit-transform:translateX(13px); -ms-transform:translateX(13px); transform:translateX(13px);
 			}
 			.setting-slider.round {border-radius: 17px;}
-			.setting-slider.round:before {border-radius: 50%;}
-			';
+			.setting-slider.round:before {border-radius: 50%;}';
+
+			// --- color picker styles ---
+			// 1.2.7: added to overlay active color picker
+			$styles[] = '.wp-picker-active {position:absolute; z-index:999; background-color:#FFF; border:1px solid #999; padding:5px;}';
+			$styles[] = '.wp-picker-active .wp-picker-input-wrap {display:block;}';
+			$styles[] = '.wp-color-picker {max-width:200px;}';
 
 			// --- filter and output styles ---
 			$namespace = $this->namespace;
@@ -3439,6 +3471,20 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // CHANGELOG
 // =========
 
+// == 1.2.9 ==
+// - fix empty number field converting to NaN value
+// - add bottom padding to settings form wrap box
+
+// == 1.2.8 ==
+// - fix saving non-alpha colours in coloralpha fields
+// - fix saving of single value in CSV field
+
+// == 1.2.7 ==
+// - fix color picker alpha sanitization / saving
+// - allow color picker alpha to not include alpha
+// - added color picker dropdown overlay styling
+// - added pointer cursor style to inactive tab
+
 // == 1.2.6 ==
 // - expanded wp_kses allowed input attributes
 
@@ -3580,8 +3626,3 @@ if ( !function_exists( 'forcefield_load_prefixed_functions' ) ) {
 // == 0.9.0 ==
 // - Development Version
 
-
-// -----------------
-// Development TODOs
-// -----------------
-// - use sanitize text field on textarea ?
