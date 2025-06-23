@@ -726,7 +726,7 @@ function forcefield_blocklist_clear() {
 // Manual Unblock Form Output
 // --------------------------
 // 0.9.1: manual unblock form output
-function forcefield_blocklist_unblock_form_output() {
+function forcefield_blocklist_unblock_form_output( $redirect = true ) {
 
 	global $forcefield;
 
@@ -755,49 +755,106 @@ function forcefield_blocklist_unblock_form_output() {
 		// 1.0.0: set form method to POST for unblock token check
 		// 1.0.3: simplify protocol logic
 		// 1.0.4: added missing esc_url and esc_url_raw wrappers
-		$adminajax = admin_url( 'admin-ajax.php' );
-		$protocol = is_ssl() ? 'https://' : 'http://';
-		$redirect = $protocol . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'];
-		echo '<form action="' . esc_url( $adminajax ) . '" method="post">' . PHP_EOL;
-		echo '<input type="hidden" name="action" value="forcefield_unblock">' . PHP_EOL;
-		echo '<input type="hidden" name="redirect" value="' . esc_url_raw( $redirect ) . '">' . PHP_EOL;
+		// $unblock_url = add_query_arg( 'action', 'forcefield_user_unblock', admin_url( 'admin-ajax.php' ) );
+		// echo '<form action="' . esc_url( $unblock_url ) . '" method="post">' . PHP_EOL;
+		echo '<form method="post">' . PHP_EOL;
+		echo '<input type="hidden" name="action" value="user-unblock">' . PHP_EOL;
+		if ( $redirect ) {
+			$protocol = is_ssl() ? 'https://' : 'http://';
+			$redirect_url = $protocol . sanitize_text_field( $_SERVER['HTTP_HOST'] ) . $_SERVER['REQUEST_URI'];
+			echo '<input type="hidden" name="redirect" value="' . esc_url( $redirect_url ) . '">' . PHP_EOL;
+		}
 		wp_nonce_field( 'forcefield-unblock' );
 
 		// --- add an unblock token field ---
-		forcefield_add_field( 'unblock' );
+		// 1.0.9: check setting for requiring unblock Token
+		$tokenize = forcefield_get_setting( 'blocklist_unblocktoken' );
+		if ( 'yes' == $tokenize ) {
+			forcefield_add_field( 'unblock' );
+		}
 
 		// --- submit button ---
 		// 1.0.4: added missing esc_html wrapper
 		echo '<input type="submit" value="' . esc_html( __( 'Unblock My IP', 'forcefield' ) ) . '">' . PHP_EOL;
 		echo '</form>' . PHP_EOL;
 
-	echo '</td></tr></table>' . PHP_EOL;
+	if ( 'yes' == $tokenize ) {
+		echo '<tr height="20"><td> </td></tr>' . PHP_EOL;
+			// 1.0.9: added message to enable javascript for tokens
+			echo '<noscript>' . esc_html( __( 'Please enable javascript to unblock your IP!', 'freestyler' ) ) . '</noscript>' . "\n";
+		echo '</td></tr></table>' . PHP_EOL;
+	}
+
 	echo '</html></body>';
 }
 
-// -------------------
-// AJAX Unblock Action
-// -------------------
+// ------------------------
+// Manual Unblock Form Test
+// ------------------------
+// 1.0.9: added manual unblock form test trigger
+add_action( 'plugins_loaded', 'forcefield_blocklist_unblock_form_test', 9 );
+function forcefield_blocklist_unblock_form_test() {
+
+	if ( isset( $_REQUEST['ff-unblock-form'] ) ) {
+		$unblocking = forcefield_get_setting( 'blocklist_unblocking' );
+		if ( 'yes' === (string) $unblocking ) {
+
+			// --- maybe clear existing blocks ---
+			forcefield_blocklist_delete_record();
+
+			// --- add a minor test transgression ---
+			$reason = sanitize_text_field( $_REQUEST['ff-unblock-form'] );
+			if ( '1' != $reason ) {
+				forcefield_blocklist_record_ip( $reason );
+			}
+
+			// --- output the manual unblock form ---
+			forcefield_blocklist_unblock_form_output( false );
+			exit;
+		}
+	}
+}
+
+// --------------------
+// AJAX: Unblock Action
+// --------------------
 // 0.9.1: check for manual unblock request
-add_action( 'wp_ajax_forcefield_unblock', 'forcefield_blocklist_unblock_check' );
-add_action( 'wp_ajax_nopriv_forcefield_unblock', 'forcefield_blocklist_unblock_check' );
-function forcefield_blocklist_unblock_check() {
+// add_action( 'wp_ajax_forcefield_user_unblock', 'forcefield_blocklist_user_unblock' );
+// add_action( 'wp_ajax_nopriv_forcefield_user_unblock', 'forcefield_blocklist_user_unblock' );
+add_action( 'plugins_loaded', 'forcefield_blocklist_user_unblock', 8 );
+function forcefield_blocklist_user_unblock() {
+
+	if ( !isset( $_REQUEST['action'] ) || ( 'user-unblock' != sanitize_text_field( $_REQUEST['action'] ) ) ) {
+		return;
+	}
 
 	// --- fail on empty referer field ---
 	// 0.9.7: added isset check as may not be set if empty
 	if ( !isset( $_SERVER['HTTP_REFERER'] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
+		echo esc_html( __( 'Error. No referer set.', 'forcefield' ) );
 		exit;
 	}
 
 	// --- check nonce field ---
 	// 0.9.6: added user nonce field for unblock IP request
-	// $checknonce = wp_verify_nonce('forcefield-unblock');
+	// $checknonce = wp_verify_nonce( sanitize_text_field( $_REQUEST['_nonce'] ), 'forcefield-unblock' );
+	// if ( !$checknonce ) {
+	// 	echo esc_html( __( 'Error. Nonce check failed.', 'forcefield' ) );
+	//	exit;
+	// }
 	check_admin_referer( 'forcefield-unblock' );
 
 	// --- check for unblock token ---
 	// 0.9.7: added check if unblock token set
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	if ( isset( $_POST['auth_token_unblock'] ) ) {
+	$unblock = false;
+	$unblock_token = ( 'yes' == forcefield_get_setting( 'blocklist_unblocktoken' ) );
+	if ( !$unblock_token ) {
+
+		// --- no unblock token needed ---
+		$unblock = true;
+
+	} elseif ( isset( $_POST['auth_token_unblock'] ) ) {
 
 		// --- get sanitized post value ---
 		// 0.9.9: strip non alphanumeric characters
@@ -827,41 +884,43 @@ function forcefield_blocklist_unblock_check() {
 			$message = __( 'Invalid Request. IP Unblock Failed.', 'forcefield' );
 
 		} else {
-
-			// --- success, delete block record ---
-			// 0.9.6: added missing success message
-			forcefield_blocklist_delete_record();
-			forcefield_delete_token( 'unblock' );
-
-			// --- output unblock success message ---
-			// 1.0.4: added missing esc_html wrapper
-			echo '<p>' . esc_html( __( 'Success! Your IP has been unblocked.', 'forcefield' ) ) . '</p>';
-
-			// --- maybe automatically redirect to last URL ---
-			// 1.0.0: added automatic redirect
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			if ( isset( $_REQUEST['redirect'] ) ) {
-
-				// --- output redirection message ---
-				// 1.0.1: fix to incorrect text domain
-				// 1.0.4: added missing esc_html wrappers
-				// 1.0.5: use sanitize_url on request variable
-				$redirect = trim( esc_url_raw( $_REQUEST['redirect'] ) );
-				if ( '' != $redirect ) {
-					echo '<p>' . esc_html( __( 'You will be automatically redirected to your last requested address.', 'forcefield' ) ) . '</p>';
-					echo '<p><a href="' . esc_url( $redirect ) . '">' . esc_html( __( 'Click here to continue to this address manually.', 'forcefield' ) ) . '</a></p>';
-
-					// --- script for automatic redirection ---
-					echo "<script>setTimeout(function() {document.location = '" . esc_url( $redirect ) . "';}, 5000);</script>";
-				}
-			}
-
-			exit;
+			$unblock = true;
 		}
 	} else {
 		// --- missing unblock token ---
 		// 0.9.7: added message for missing unblock token
 		$message = __( 'Error! Unblock authentication failed.', 'forcefield' );
+	}
+
+	if ( $unblock ) {
+
+		// --- success, delete block record ---
+		// 0.9.6: added missing success message
+		forcefield_blocklist_delete_record();
+		forcefield_delete_token( 'unblock' );
+
+		// --- output unblock success message ---
+		// 1.0.4: added missing esc_html wrapper
+		echo '<p>' . esc_html( __( 'Success! Your IP has been unblocked.', 'forcefield' ) ) . '</p>';
+
+		// --- maybe automatically redirect to last URL ---
+		// 1.0.0: added automatic redirect
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( isset( $_REQUEST['redirect'] ) ) {
+
+			// --- output redirection message ---
+			// 1.0.1: fix to incorrect text domain
+			// 1.0.4: added missing esc_html wrappers
+			// 1.0.5: use sanitize_url on request variable
+			$redirect = trim( esc_url_raw( $_REQUEST['redirect'] ) );
+			if ( '' != $redirect ) {
+				echo '<p>' . esc_html( __( 'You will be automatically redirected to your last requested address.', 'forcefield' ) ) . '</p>';
+				echo '<p><a href="' . esc_url( $redirect ) . '">' . esc_html( __( 'Click here to continue to this address manually.', 'forcefield' ) ) . '</a></p>';
+
+				// --- script for automatic redirection ---
+				echo "<script>setTimeout(function() {document.location = '" . esc_url( $redirect ) . "';}, 5000);</script>";
+			}
+		}
 	}
 
 	// --- javascript alert message and exit ---

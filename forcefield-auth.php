@@ -22,9 +22,10 @@
 // - XML RPC requires SSL Message
 // - Login Token Authentication
 // - Registration Token Authentication
-// - Blog Signup Authenticate
-// - Lost Password Token Authentication
-// - Commenting Authenticate
+// - Blog Signup Authenticate (Multisite)
+// - Lost Password Authentication
+// - Password Protected Post Authentication
+// - Commenting Authentication
 // - BuddyPress Registration Authenticate
 
 
@@ -399,6 +400,17 @@ function forcefield_lostpass_field() {
 function forcefield_comment_field() {
 	forcefield_add_field( 'comment' );
 }
+// 1.0.9: add token field to password protected post form
+add_filter( 'the_password_form', 'forcefield_protected_form', 11, 2 );
+function forcefield_protected_form( $html, $post = false ) {
+	$field = forcefield_add_field( 'postpass' );
+	if ( '' != $field ) {
+		$find = '</form>';
+		$replace = $field . '</form>';
+		$html = str_replace( $find, $replace, $html );
+	}
+	return $html;
+}
 
 // 0.9.5: add token field to BuddyPress registration form
 add_action( 'bp_after_account_details_fields', 'forcefield_buddypress_field' );
@@ -414,9 +426,13 @@ function forcefield_buddypress_field() {
 function forcefield_add_field( $context ) {
 
 	// --- check setting for context ---
-	$tokenize = forcefield_get_setting( $context . '_token' );
-	if ( 'yes' != $tokenize ) {
-		return;
+	// 1.0.9: skip check for unblock form
+	if ( 'unblock' != $context ) {
+		$tokenize = forcefield_get_setting( $context . '_token' );
+		if ( 'yes' != $tokenize ) {
+			// 1.0.9: return empty string in case filtering (post password)
+			return '';
+		}
 	}
 
 	// --- output tokenizer javascript ---
@@ -441,14 +457,20 @@ function forcefield_add_field( $context ) {
 // -------------------------------
 // 0.9.5: add token field to BuddyPress registration form
 // 1.0.1: remove separate functions and get context from action
+// 1.0.9: added actions for password protected posts context
+// 1.0.9: added action for unblock tokenizer
 add_action( 'wp_ajax_nopriv_forcefield_login', 'forcefield_output_token' );
 add_action( 'wp_ajax_nopriv_forcefield_register', 'forcefield_output_token' );
 add_action( 'wp_ajax_nopriv_forcefield_signup', 'forcefield_output_token' );
 add_action( 'wp_ajax_forcefield_signup', 'forcefield_output_token' );
 add_action( 'wp_ajax_nopriv_forcefield_lostpass', 'forcefield_output_token' );
+add_action( 'wp_ajax_nopriv_forcefield_postpass', 'forcefield_output_token' );
+add_action( 'wp_ajax_forcefield_postpass', 'forcefield_output_token' );
 add_action( 'wp_ajax_nopriv_forcefield_comment', 'forcefield_output_token' );
 add_action( 'wp_ajax_forcefield_comment', 'forcefield_output_token' );
 add_action( 'wp_ajax_nopriv_forcefield_buddypress', 'forcefield_output_token' );
+add_action( 'wp_ajax_nopriv_forcefield_unblock', 'forcefield_output_token' );
+add_action( 'wp_ajax_forcefield_unblock', 'forcefield_output_token' );
 
 // ---------------------
 // Token Output Abstract
@@ -459,19 +481,25 @@ function forcefield_output_token() {
 	// 1.0.5: added sanitize_title to request variable
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	$action = sanitize_title( $_REQUEST['action'] );
+
 	// 1.0.4: added validation of action possibilities
+	// 1.0.9: added postpass context action
+	// 1.0.9: added unblock context action
 	$actions = array(
 		'forcefield_login',
 		'forcefield_register',
 		'forcefield_signup',
 		'forcefield_lostpass',
+		'forcefield_postpass',
 		'forcefield_comment',
 		'forcefield_buddypress',
+		'forcefield_unblock'
 	);
 	if ( !in_array( $action, $actions ) ) {
 		exit;
 	}
 	$context = str_replace( 'forcefield_', '', $action );
+	// echo esc_html( $context );
 
 	$token = forcefield_create_token( $context );
 
@@ -509,16 +537,17 @@ function forcefield_create_token( $context ) {
 
 	global $forcefield;
 
-	$debug = false;
-	// $debug = true;
+	$debug = false; // $debug = true;
 
 	// --- check token setting for context ----
 	$tokenize = forcefield_get_setting( $context . '_token' );
-	if ( $debug ) {
-		echo "<!-- Tokenize? " . esc_html( $tokenize ) . " (" . esc_html( $context ) . ") -->";
-	}
-	if ( 'yes' != $tokenize ) {
-		return false;
+	if ( 'unblock' != $context ) {
+		if ( $debug ) {
+			echo "<!-- Tokenize? " . esc_html( $tokenize ) . " (" . esc_html( $context ) . ") -->";
+		}
+		if ( 'yes' != $tokenize ) {
+			return false;
+		}
 	}
 
 	// --- maybe return existing token ---
@@ -632,6 +661,11 @@ function forcefield_xmlrpc_authentication( $user, $username, $password ) {
 		return $user;
 	}
 	if ( forcefield_blacklist_check( 'apis' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot access XML RPC.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'xmlrpc_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
 	}
 
@@ -734,6 +768,11 @@ function forcefield_login_validate( $user, $username, $password ) {
 		return $user;
 	}
 	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot Login.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'login_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
 	}
 
@@ -787,6 +826,11 @@ function forcefield_login_validate( $user, $username, $password ) {
 		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$errormessage = __( 'SSL is required to Login.', 'forcefield' );
+		$status = 301; // HTTP 301: Redirect
+		forcefield_filtered_error( 'login_requiressl', $errormessage, $status );
+
 		// --- redirect if not secure ---
 		add_filter( 'secure_auth_redirect', '__return_true' );
 		auth_redirect();
@@ -954,6 +998,11 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		return $errors;
 	}
 	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot Register.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'register_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
 	}
 
@@ -972,6 +1021,11 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' == $requiressl ) && !is_ssl() ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$errormessage = __( 'SSL is required to Register.', 'forcefield' );
+		$status = 301; // HTTP 301: Redirect
+		forcefield_filtered_error( 'register_requiressl', $errormessage, $status );
+
 		// note: compressed version of auth_redirect function
 		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
@@ -1107,9 +1161,9 @@ function forcefield_registration_authenticate( $errors, $sanitized_user_login, $
 	return $errors;
 }
 
-// ------------------------
-// Blog Signup Authenticate
-// ------------------------
+// --------------------------------------
+// Blog Signup Authentication (Multisite)
+// --------------------------------------
 add_filter( 'wpmu_validate_user_signup', 'forcefield_signup_authenticate' );
 function forcefield_signup_authenticate( $results ) {
 
@@ -1126,10 +1180,15 @@ function forcefield_signup_authenticate( $results ) {
 		return $results;
 	}
 	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot Signup.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'signup_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
 	}
 
-	// ? maybe allow signup for already logged in users ?
+	// ? maybe allow (blog) signup for already logged in users ?
 	// if ( is_user_logged_in() && is_admin() && !defined('DOING_AJAX') ) {return $results;}
 
 	// --- maybe require SSL connection for blog signup ---
@@ -1139,6 +1198,11 @@ function forcefield_signup_authenticate( $results ) {
 		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$errormessage = __( 'SSL is required to Signup.', 'forcefield' );
+		$status = 301; // HTTP 301: Redirect
+		forcefield_filtered_error( 'signup_requiressl', $errormessage, $status );
+
 		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
@@ -1289,6 +1353,11 @@ function forcefield_lost_password_authenticate( $allow ) {
 		return $allow;
 	}
 	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot change password.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'lostpass_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
 	}
 
@@ -1308,6 +1377,10 @@ function forcefield_lost_password_authenticate( $allow ) {
 		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.9: add missing call to filtered error (for logging)
+		$errormessage = __( 'SSL is required to change your password.', 'forcefield' );
+		$status = 301; // HTTP 301: Redirect
+		forcefield_filtered_error( 'lostpass_ssl', $errormessage, $status );
 		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
@@ -1439,20 +1512,186 @@ function forcefield_lost_password_authenticate( $allow ) {
 	return $allow;
 }
 
-// -----------------------
-// Commenting Authenticate
-// -----------------------
+// ---------------------------
+// Protected Post Authenticate
+// ---------------------------
+add_action( 'login_form_postpass', 'forcefield_protected_authenticate' );
+function forcefield_protected_authenticate() {
+	
+	// --- filter general error message ---
+	$errormessage = forcefield_get_error_message();
+	$errormessage = apply_filters( 'forcefield_error_message_postpassword', $errormessage );
+
+	// --- check IP whitelist and blacklist ---
+	if ( forcefield_whitelist_check( 'actions' ) ) {
+		return;
+	}
+	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot access Protected Post.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'postpass_blacklist', $errormessage, $status );
+		forcefield_forbidden_exit();
+	}
+
+	// --- check if user is logged in ---
+	$require_login = forcefield_get_setting( 'postpass_requirelogin' );
+	if ( $require_login && !is_user_logged_in() ) {
+		$errormessage = __( 'You need to be logged in to view password protected posts.', 'forcefield' );
+		$status = 200; // HTTP 200: OK
+		forcefield_filtered_error( 'postpass_logged_in', $errormessage, $status );
+		wp_safe_redirect( wp_get_referer() );
+		exit;
+	}
+
+	// --- maybe require SSL connection for post password ---
+	$requiressl = forcefield_get_setting( 'postpass_requiressl' );
+	if ( defined( 'FORCEFIELD_REQUIRE_SSL' ) ) {
+		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
+	}
+	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		$errormessage = __( 'SSL is required to view password protected posts.', 'forcefield' );
+		$status = 301; // HTTP 200: Redirect
+		forcefield_filtered_error( 'postpass_logged_in', $errormessage, $status );
+		$referer_url = wp_get_referer();
+		wp_safe_redirect( set_url_scheme( $referer_url, 'https' ) );
+		exit;
+	}
+
+	// --- check for empty referer field ---
+	if ( !isset( $_SERVER['HTTP_REFERER'] ) || ( '' == $_SERVER['HTTP_REFERER'] ) ) {
+
+		do_action( 'forcefield_postpass_noreferer' );
+		do_action( 'forcefield_no_referer' );
+
+		// --- no referer ban ---
+		// 0.9.1: separate general no referer recording
+		$norefban = forcefield_get_setting( 'blocklist_norefban' );
+		if ( 'yes' == $norefban ) {
+			$transgressions = forcefield_blocklist_record_ip( 'no_referer' );
+			$blocked = forcefield_blocklist_check_transgressions( 'no_referer', $transgressions );
+			if ( $blocked ) {
+				$block = true;
+			}
+		}
+
+		// --- no referer block ---
+		$norefblock = forcefield_get_setting( 'postpass_norefblock' );
+		if ( 'yes' === (string) $norefblock ) {
+			$block = true;
+		}
+
+		if ( isset( $block ) && $block ) {
+			do_action( 'forcefield_postpass_failed' );
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error( 'postpass_no_referer', $errormessage, $status );
+			wp_safe_redirect( wp_get_referer() );
+			exit;
+		}
+	}
+
+	// --- check tokenizer setting ---
+	$tokenize = forcefield_get_setting( 'postpass_token' );
+	if ( 'yes' !== (string) $tokenize ) {
+		return;
+	}
+
+	// --- maybe ban the IP if missing the token form field ---
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
+	if ( !isset( $_POST['auth_token_postpass'] ) ) {
+
+		// --- record no token ---
+		$recordnotoken = forcefield_get_setting( 'blocklist_notoken' );
+		if ( 'yes' === (string) $recordnotoken ) {
+			forcefield_blocklist_record_ip( 'no_token' );
+		}
+
+		// --- no token ban ---
+		$instaban = forcefield_get_setting( 'postpass_notokenban' );
+		if ( 'yes' === (string) $instaban ) {
+			forcefield_blocklist_record_ip( 'no_postpass_token' );
+		}
+
+		do_action( 'forcefield_postpass_notoken' );
+		do_action( 'forcefield_postpass_failed' );
+		$status = 400; // HTTP 400: Bad Request
+		return forcefield_filtered_error( 'postpass_token_missing', $errormessage, $status );
+		wp_safe_redirect( wp_get_referer() );
+		exit;
+
+	} else {
+
+		// --- sanitize posted token ---
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$authtoken = sanitize_text_field( $_POST['auth_token_postpass'] );
+		$checkposted = preg_match( '/^[a-zA-Z0-9]+$/', $authtoken );
+		if ( empty( $authtoken ) || ( 12 != strlen( $authtoken ) ) || !$checkposted ) {
+
+			do_action( 'forcefield_postpass_invalid' );
+			do_action( 'forcefield_postpass_failed' );
+			$status = 400; // HTTP 400: Bad Request
+			return forcefield_filtered_error( 'postpass_token_invalid', $errormessage, $status );
+			wp_safe_redirect( wp_get_referer() );
+			exit;
+		}
+
+		// --- remove old records ---
+		forcefield_blocklist_delete_record( false, 'no_token' );
+		forcefield_blocklist_delete_record( false, 'no_postpass_token' );
+
+	}
+
+	// --- check for lost password token for IP ---
+	$checktoken = forcefield_check_token( 'postpass' );
+
+	// --- check token ---
+	if ( !$checktoken ) {
+
+		// --- token expired ---
+		do_action( 'forcefield_postpass_oldtoken' );
+		do_action( 'forcefield_postpass_failed' );
+		forcefield_filtered_error( 'postpass_token_expired', $errormessage, $status );
+		wp_safe_redirect( wp_get_referer() );
+		exit;
+
+	} elseif ( $authtoken != $checktoken['value'] ) {
+
+		// --- fail, lost password token is a mismatch ---
+		$recordbadtokens = forcefield_get_setting( 'blocklist_badtokenban' );
+		if ( 'yes' === (string) $recordbadtokens ) {
+			forcefield_blocklist_record_ip( 'bad_token' );
+		}
+
+		do_action( 'forcefield_postpass_mismatch' );
+		do_action( 'forcefield_postpass_failed' );
+		$status = 401; // HTTP 401: Unauthorized
+		forcefield_filtered_error( 'postpass_token_mismatch', $errormessage, $status );
+		wp_safe_redirect( wp_get_referer() );
+		exit;
+
+
+	} else {
+
+		// --- success, allow the user to send reset email ---
+		forcefield_blocklist_delete_record( false, 'bad_token' );
+
+		// --- remove used lost password token ---
+		forcefield_delete_token( 'postpass' );
+		do_action( 'forcefield_postpass_success' );
+
+	}
+}
+
+// -------------------------
+// Commenting Authentication
+// -------------------------
 add_filter( 'preprocess_comment', 'forcefield_preprocess_comment' );
 function forcefield_preprocess_comment( $comment ) {
 
 	// --- filter general error message ---
 	$errormessage = forcefield_get_error_message();
 	$errormessage = apply_filters( 'forcefield_error_message_comment', $errormessage );
-
-	// --- skip checks for those with comment moderation permission ---
-	if ( current_user_can( 'moderate_comments' ) ) {
-		return $comment;
-	}
 
 	// --- check IP whitelist and blacklist ---
 	// 0.9.1: checks IP whitelist
@@ -1461,7 +1700,18 @@ function forcefield_preprocess_comment( $comment ) {
 		return $comment;
 	}
 	if ( forcefield_blacklist_check( 'actions' ) ) {
+		// 1.0.9: add missing call to filtered error (for logging only)
+		$ip = forcefield_get_remote_ip();
+		$errormessage = __( 'Blacklisted IP cannot Comment.', 'forcefield' ) . ' [' . $ip . ']';
+		$status = 403; // HTTP 403: Forbidden
+		forcefield_filtered_error( 'comment_blacklist', $errormessage, $status );
 		forcefield_forbidden_exit();
+	}
+
+	// --- skip checks for those with comment moderation permission ---
+	// 1.0.9: move moderator permission check to after blacklist check
+	if ( is_user_logged_in() && current_user_can( 'moderate_comments' ) ) {
+		return $comment;
 	}
 
 	// --- maybe require SSL connection for commenting ---
@@ -1471,6 +1721,11 @@ function forcefield_preprocess_comment( $comment ) {
 		$requiressl = ( (bool) FORCEFIELD_REQUIRE_SSL ) ? 'yes' : '';
 	}
 	if ( ( 'yes' === (string) $requiressl ) && !is_ssl() ) {
+		// 1.0.9: add missing call to filtered error (for logging)
+		$errormessage = __( 'SSL is required to Comment.', 'forcefield' );
+		$status = 301; // HTTP 301: Redirect
+		forcefield_filtered_error( 'comment_ssl', $errormessage, $status );
+
 		// 1.0.4: use wp_safe_redirect instead of wp_redirect
 		if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
 			wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );

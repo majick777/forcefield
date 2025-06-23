@@ -7,8 +7,8 @@ Plugin URI: https://wordquest.org/plugins/forcefield/
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires at least: 4.0.0
-Tested up to: 6.5.5
-Stable tag: 1.0.8
+Tested up to: 6.8.1
+Stable tag: 1.0.9
 
 Strong and Flexible Access, User Action, API, Behavioural and Role Protection
 
@@ -66,6 +66,14 @@ Checks your installed core, plugins and themes for known vulnerabilities, accord
 
 
 == Changelog ==
+
+= 1.0.9 = 
+* Updated: Plugin Panel (1.3.5)
+* Updated: Freemius SDK (2.12.0)
+* Fixed: authentication blocking on password protected posts
+* Fixed: token loading for manual unblock form
+* Added: options for tokens/blocking password protected posts
+* Added: logging calls for blacklisted IP / SSL required actions
 
 = 1.0.8 =
 * Updated: Plugin Panel (1.3.0)

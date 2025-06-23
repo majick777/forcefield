@@ -337,6 +337,17 @@ function forcefield_admin_page() {
 			echo '<td>' . esc_html( __( 'Allows blocked visitors to unblock their IP manually via a simple form.', 'forcefield' ) ) . '</td>';
 			echo '<td width="10"></td><td>(' . esc_html( __( 'optional', 'forcefield' ) ) . ')</td></tr>';
 
+			// --- require token for unblocking? (blocklist_unblocktoken) ---
+			// 1.0.9: added option to add token to unblock form
+			echo '<tr><td><b>' . esc_html( __( 'Require Unblock Token?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_blocklist_unblocktoken" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'ff_blocklist_unblocktoken', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Add unblock token to manual unblock form.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'recommended', 'forcefield' ) ) . ')</td></tr>';
+
 
 			// -----
 			// Login
@@ -622,6 +633,62 @@ function forcefield_admin_page() {
 			echo '<td>' . esc_html( __( 'Require Secure Connection for Lost Password form.', 'forcefield' ) ) . '</td>';
 			echo '<td width="10"></td><td>(' . esc_html( __( 'optional', 'forcefield' ) ) . ')</td></tr>' . PHP_EOL;
 
+			// ------------------------
+			// Password Protected Posts
+			// ------------------------
+			// 1.0.9: added options for password protected posts
+			echo '<tr><td colspan="5"><h3 style="margin-bottom:10px;">' . esc_html( __( 'Protected Posts', 'forcefield' ) ) . '</h3></td></tr>' . PHP_EOL;
+
+			// --- protected post referer check (postpass_norefblock) ---
+			echo '<tr><td><b>' . esc_html( __( 'Block if Missing HTTP Referer?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_postpass_norefblock" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'postpass_norefblock', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Block Post Password request if missing HTTP Referer.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'recommended', 'forcefield' ) ) . ')</td></tr>' . PHP_EOL;
+
+			// --- lost password token (postpass_token) ---
+			echo '<tr><td><b>' . esc_html( __( 'Require Post Password Token?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_postpass_token" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'postpass_token', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Require Automatic Script Token for Post Password form.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'recommended', 'forcefield' ) ) . ')</td></tr>';
+
+			// --- lost password auth ban (postpass_notokenban) ---
+			echo '<tr><td><b>' . esc_html( __( 'InstaBan IP if Missing Token?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_postpass_notokenban" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'postpass_notokenban', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Instantly Ban IP if missing Post Password Token.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'optional', 'forcefield' ) ) . ')</td></tr>' . PHP_EOL;
+
+			// --- require SSL for lost password (postpass_requiressl) ---
+			echo '<tr><td><b>' . esc_html( __( 'Require SSL for Post Password?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_postpass_requiressl" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'postpass_requiressl', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Require Secure Connection for Post Password form.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'optional', 'forcefield' ) ) . ')</td></tr>' . PHP_EOL;
+
+			// --- require logged in for post password (postpass_requirelogin) ---
+			echo '<tr><td><b>' . esc_html( __( 'Require Login for Post Password?', 'forcefield' ) ) . '</b></td><td width="20"></td>';
+			echo '<td class="checkbox-cell"><input type="checkbox" name="ff_postpass_requirelogin" value="yes"';
+			if ( 'yes' == forcefield_get_setting( 'postpass_requirelogin', false ) ) {
+				echo ' checked="checked"';
+			}
+			echo '></td><td width="10"></td>';
+			echo '<td>' . esc_html( __( 'Only logged in users can access protected content.', 'forcefield' ) ) . '</td>';
+			echo '<td width="10"></td><td>(' . esc_html( __( 'not recommended', 'forcefield' ) ) . ')</td></tr>' . PHP_EOL;
+
 		// --- close user action tab ---
 		echo '</table></div>' . PHP_EOL;
 
@@ -652,7 +719,8 @@ function forcefield_admin_page() {
 			// --- admin login fail limit (admin_fail) ---
 			echo '<tr><td><b>' . esc_html( __( 'Failed Admin Login Limit', 'forcefield' ) ) . '</b></td><td width="20"></td>';
 			$limit = forcefield_get_setting( 'limit_admin_fail', false );
-			echo '<td><input style="width:40px;" type="number" name="ff_limit_admin_fail" value="' . esc_attr( $limit ) . '"></td>';
+			// 1.0.9: widen input width
+			echo '<td><input style="width:50px;" type="number" name="ff_limit_admin_fail" value="' . esc_attr( $limit ) . '"></td>';
 			echo '<td width="10"></td>';
 			echo '<td>' . esc_html( __( 'Admin Login Failures before IP Ban.', 'forcefield' ) ) . '</td>';
 			echo '<td width="10"></td><td>(' . esc_html( __( 'default', 'forcefield' ) ) . ': ' . esc_attr( $limits['admin_fail'] ) . ')</td></tr>' . PHP_EOL;

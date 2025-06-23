@@ -5,15 +5,13 @@ Plugin Name: ForceField
 Plugin URI: https://wordquest.org/plugins/forcefield/
 Author: Tony Hayes
 Description: Flexible Brute Force, User Action, API and Role Protection
-Version: 1.0.8
+Version: 1.0.9
 Author URI: https://wordquest.org/
 GitHub Plugin URI: majick777/forcefield
 @fs_premium_only forcefield-pro.php
 */
 
-if ( !defined( 'ABSPATH' ) ) {
-	exit;
-}
+if ( !defined( 'ABSPATH' ) ) {exit;}
 
 
 // ==================
@@ -313,6 +311,11 @@ $options = array(
 		'value'		=> 'yes',
 		'default'	=> 'yes',
 	),
+	'blocklist_unblocktoken'	=> array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> 'yes',
+	),
 	'blocklist_whitelist'	=> array(
 		'type'		=> 'special',
 		'default'	=> '',
@@ -454,6 +457,34 @@ $options = array(
 		'default'	=> '',
 	),
 
+	// --- Password Protected Posts ---
+	// 1.0.9: added options for password protected posts
+	'postpass_requirelogin' => array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> '',
+	),
+	'postpass_token'		=> array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> '',
+	),
+	'postpass_notokenban'	=> array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> '',
+	),
+	'postpass_norefblock'	=> array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> 'yes',
+	),
+	'postpass_requiressl'	=> array(
+		'type'		=> 'checkbox',
+		'value'		=> 'yes',
+		'default'	=> '',
+	),
+
 	// --- Comments ---
 	'comment_token'			=> array(
 		'type'		=> 'checkbox',
@@ -475,6 +506,9 @@ $options = array(
 		'value'		=> 'yes',
 		'default'	=> '',
 	),
+	// TODO: note about commenting option on Moderation page?
+	// ie. "Users must be logged in to comment"
+	
 
 	// --- Application Passwords ---
 	// 1.0.1: added option to disable application passwords
@@ -1162,7 +1196,7 @@ function forcefield_is_ip_in_range( $ip, $iprange ) {
 // 403 Forbidden and Exit
 // ----------------------
 function forcefield_forbidden_exit() {
-	// status_header('403', 'HTTP/1.1 403 Forbidden');
+	// status_header( '403', 'HTTP/1.1 403 Forbidden' );
 	header( 'HTTP/1.1 403 Forbidden' );
 	header( 'Status: 403 Forbidden' );
 	header( 'Connection: Close' );
@@ -1181,6 +1215,9 @@ function forcefield_filtered_error( $error, $errormessage, $status = false, $err
 	$errormessage = apply_filters( 'forcefield_error_message_' . $error, $errormessage );
 
 	// --- log errors to debug file ---
+	// TODO: add then check error logging options
+	// $log = forcefield_get_setting( 'log_' . $context );
+
 	// 0.9.7: added authentication error logging
 	// 1.0.4: use gmdate instead of date
 	$datetime = gmdate( 'Y-m-d H:i:s', time() );
